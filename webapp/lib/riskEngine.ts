@@ -182,7 +182,7 @@ const RED_FLAG_MESSAGES: Record<string, string> = {
   sudden_weakness_paralysis:
     "Sudden weakness or paralysis may indicate stroke. Call emergency services immediately.",
   suicidal_thoughts:
-    "Please contact a crisis helpline immediately. India: iCall 9152987821, Vandrevala Foundation 1860-2662-345, AASRA 9820466726.",
+    "Please contact a crisis helpline immediately. Emergency: 112. India: iCall 9152987821, Vandrevala Foundation 1860-2662-345, AASRA 9820466726.",
   difficulty_breathing:
     "Breathing difficulty requires immediate medical evaluation. Call emergency services.",
   severe_allergic_reaction:

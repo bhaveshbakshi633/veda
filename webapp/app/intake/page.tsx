@@ -2,68 +2,245 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  conditionLabels,
-  medicationLabels,
-} from "@/lib/validation/intakeSchema";
 
-type Step = 1 | 2 | 3 | 4 | 5 | 6;
+type Step = 1 | 2 | 3;
 
-const SYMPTOM_OPTIONS: { value: string; label: string }[] = [
-  { value: "general_wellness", label: "General Wellness" },
-  { value: "stress_anxiety", label: "Stress / Anxiety" },
-  { value: "sleep_issues", label: "Sleep Issues" },
-  { value: "digestive_issues", label: "Digestive Issues" },
-  { value: "constipation", label: "Constipation" },
-  { value: "acidity_reflux", label: "Acidity / Reflux" },
-  { value: "joint_pain", label: "Joint Pain" },
-  { value: "skin_issues", label: "Skin Issues" },
-  { value: "hair_issues", label: "Hair / Scalp Issues" },
-  { value: "respiratory_cold_cough", label: "Cold / Cough / Respiratory" },
-  { value: "low_energy_fatigue", label: "Low Energy / Fatigue" },
-  { value: "memory_concentration", label: "Memory / Concentration" },
-  { value: "weight_management", label: "Weight Management" },
-  { value: "immunity_general", label: "General Immunity" },
-  { value: "reproductive_health", label: "Reproductive Health" },
-  { value: "menstrual_issues", label: "Menstrual Issues" },
-  { value: "menopausal_symptoms", label: "Menopausal Symptoms" },
-  { value: "blood_sugar_concern", label: "Blood Sugar Concern" },
-  { value: "cholesterol_concern", label: "Cholesterol Concern" },
-  { value: "heart_health", label: "Heart Health" },
-  { value: "other", label: "Other" },
+// ============================================
+// GROUPED CONDITIONS (instead of flat list)
+// ============================================
+
+interface ConditionGroup {
+  label: string;
+  items: { value: string; label: string }[];
+}
+
+const CONDITION_GROUPS: ConditionGroup[] = [
+  {
+    label: "Heart & Blood Pressure",
+    items: [
+      { value: "hypertension", label: "High BP" },
+      { value: "heart_failure", label: "Heart Failure" },
+      { value: "coronary_artery_disease", label: "Heart Disease" },
+      { value: "arrhythmia", label: "Irregular Heartbeat" },
+    ],
+  },
+  {
+    label: "Diabetes & Thyroid",
+    items: [
+      { value: "diabetes_type_1", label: "Type 1 Diabetes" },
+      { value: "diabetes_type_2", label: "Type 2 Diabetes" },
+      { value: "hypothyroid", label: "Low Thyroid" },
+      { value: "hyperthyroid", label: "Overactive Thyroid" },
+    ],
+  },
+  {
+    label: "Digestive",
+    items: [
+      { value: "peptic_ulcer", label: "Stomach Ulcer" },
+      { value: "gerd", label: "Acid Reflux / GERD" },
+      { value: "ibs_constipation", label: "IBS (Constipation)" },
+      { value: "ibs_diarrhea", label: "IBS (Diarrhea)" },
+      { value: "ibd", label: "IBD / Crohn's" },
+    ],
+  },
+  {
+    label: "Kidney & Liver",
+    items: [
+      { value: "kidney_disease_mild", label: "Mild Kidney Issue" },
+      { value: "kidney_disease_moderate_severe", label: "Serious Kidney Issue" },
+      { value: "liver_disease", label: "Liver Disease" },
+      { value: "kidney_stones", label: "Kidney Stones" },
+    ],
+  },
+  {
+    label: "Mental Health",
+    items: [
+      { value: "depression", label: "Depression" },
+      { value: "anxiety_disorder", label: "Anxiety" },
+      { value: "bipolar_disorder", label: "Bipolar" },
+      { value: "epilepsy", label: "Epilepsy" },
+    ],
+  },
+  {
+    label: "Autoimmune",
+    items: [
+      { value: "autoimmune_ra", label: "Rheumatoid Arthritis" },
+      { value: "autoimmune_lupus", label: "Lupus" },
+      { value: "autoimmune_hashimotos", label: "Hashimoto's" },
+      { value: "autoimmune_ms", label: "Multiple Sclerosis" },
+      { value: "autoimmune_other", label: "Other Autoimmune" },
+    ],
+  },
+  {
+    label: "Women's Health",
+    items: [
+      { value: "pcos", label: "PCOS" },
+      { value: "endometriosis", label: "Endometriosis" },
+      { value: "uterine_fibroids", label: "Fibroids" },
+      { value: "breast_cancer_history", label: "Breast Cancer History" },
+    ],
+  },
+  {
+    label: "Other",
+    items: [
+      { value: "asthma", label: "Asthma" },
+      { value: "copd", label: "COPD" },
+      { value: "bleeding_disorder", label: "Bleeding Disorder" },
+      { value: "iron_overload", label: "Iron Overload" },
+      { value: "obesity", label: "Obesity" },
+      { value: "underweight", label: "Underweight" },
+      { value: "scheduled_surgery_within_4_weeks", label: "Surgery Soon" },
+      { value: "organ_transplant", label: "Organ Transplant" },
+      { value: "other", label: "Something Else" },
+    ],
+  },
 ];
 
-const GOAL_OPTIONS: { value: string; label: string }[] = [
-  { value: "find_herb_for_concern", label: "Find herbs for my concern" },
-  { value: "check_safety_of_current_herb", label: "Check safety of a herb I take" },
-  { value: "check_drug_herb_interaction", label: "Check drug-herb interactions" },
-  { value: "learn_about_specific_herb", label: "Learn about a specific herb" },
-  { value: "general_ayurvedic_guidance", label: "General Ayurvedic guidance" },
-  { value: "understand_dosage", label: "Understand dosage info" },
+// ============================================
+// GROUPED MEDICATIONS
+// ============================================
+
+interface MedGroup {
+  label: string;
+  items: { value: string; label: string }[];
+}
+
+const MEDICATION_GROUPS: MedGroup[] = [
+  {
+    label: "Diabetes",
+    items: [
+      { value: "antidiabetic_oral", label: "Diabetes pills (Metformin, etc.)" },
+      { value: "insulin", label: "Insulin" },
+    ],
+  },
+  {
+    label: "Blood Pressure & Heart",
+    items: [
+      { value: "antihypertensive_ace_arb", label: "BP pills (Enalapril, Losartan)" },
+      { value: "antihypertensive_beta_blocker", label: "Beta-blocker (Metoprolol)" },
+      { value: "antihypertensive_ccb", label: "Amlodipine / similar" },
+      { value: "antihypertensive_diuretic_loop", label: "Water pill (Furosemide)" },
+      { value: "antihypertensive_diuretic_thiazide", label: "Water pill (HCTZ)" },
+      { value: "diuretic_potassium_sparing", label: "Spironolactone" },
+      { value: "digoxin", label: "Digoxin" },
+      { value: "statin", label: "Cholesterol pill (Atorvastatin)" },
+    ],
+  },
+  {
+    label: "Blood Thinners",
+    items: [
+      { value: "warfarin", label: "Warfarin" },
+      { value: "aspirin_antiplatelet", label: "Aspirin (daily)" },
+      { value: "clopidogrel", label: "Clopidogrel (Plavix)" },
+      { value: "doac_anticoagulant", label: "Newer blood thinner" },
+    ],
+  },
+  {
+    label: "Mental Health & Brain",
+    items: [
+      { value: "ssri", label: "Antidepressant (SSRI)" },
+      { value: "snri", label: "Antidepressant (SNRI)" },
+      { value: "benzodiazepine", label: "Anxiety/sleep pill (Alprazolam)" },
+      { value: "antiepileptic", label: "Anti-seizure medication" },
+      { value: "lithium", label: "Lithium" },
+      { value: "antipsychotic", label: "Antipsychotic" },
+    ],
+  },
+  {
+    label: "Thyroid",
+    items: [
+      { value: "thyroid_levothyroxine", label: "Thyroid pill (Thyronorm)" },
+      { value: "antithyroid_medication", label: "Anti-thyroid (Neomercazole)" },
+    ],
+  },
+  {
+    label: "Immune & Cancer",
+    items: [
+      { value: "corticosteroid_oral", label: "Steroid pills (Prednisolone)" },
+      { value: "immunosuppressant", label: "Immunosuppressant" },
+      { value: "methotrexate", label: "Methotrexate" },
+      { value: "chemotherapy", label: "Chemotherapy" },
+      { value: "tamoxifen", label: "Tamoxifen" },
+      { value: "aromatase_inhibitor", label: "Aromatase Inhibitor" },
+    ],
+  },
+  {
+    label: "Other Common",
+    items: [
+      { value: "oral_contraceptive", label: "Birth control pill" },
+      { value: "hrt", label: "Hormone therapy (HRT)" },
+      { value: "iron_supplement", label: "Iron supplement" },
+      { value: "nsaid_regular", label: "Painkiller (Ibuprofen, Diclofenac)" },
+      { value: "ppi_antacid", label: "Antacid (Omeprazole, Pantoprazole)" },
+      { value: "anti_tb_drugs", label: "TB medication" },
+      { value: "other", label: "Something else" },
+    ],
+  },
 ];
 
-const RED_FLAG_QUESTIONS: { key: string; label: string }[] = [
-  { key: "chest_pain", label: "Are you experiencing chest pain, tightness, or pressure right now?" },
-  { key: "blood_in_stool_vomit", label: "Have you noticed blood in your stool or vomit?" },
-  { key: "high_fever_over_103", label: "Do you have a high fever (over 103°F / 39.4°C)?" },
-  { key: "sudden_weakness_paralysis", label: "Have you experienced sudden weakness or paralysis?" },
-  { key: "suicidal_thoughts", label: "Are you having thoughts of self-harm or suicide?" },
-  { key: "difficulty_breathing", label: "Are you having difficulty breathing right now?" },
-  { key: "severe_allergic_reaction", label: "Are you experiencing a severe allergic reaction (swelling, hives, throat closing)?" },
-  { key: "yellowing_skin_eyes", label: "Have you noticed yellowing of your skin or eyes?" },
+// ============================================
+// SIMPLIFIED CONCERNS
+// ============================================
+
+const CONCERN_OPTIONS: { value: string; label: string; icon: string }[] = [
+  { value: "stress_anxiety", label: "Stress / Anxiety", icon: "😰" },
+  { value: "sleep_issues", label: "Sleep Issues", icon: "😴" },
+  { value: "digestive_issues", label: "Digestion", icon: "🫄" },
+  { value: "low_energy_fatigue", label: "Low Energy", icon: "🔋" },
+  { value: "joint_pain", label: "Joint Pain", icon: "🦴" },
+  { value: "immunity_general", label: "Immunity", icon: "🛡️" },
+  { value: "memory_concentration", label: "Focus / Memory", icon: "🧠" },
+  { value: "skin_issues", label: "Skin / Hair", icon: "✨" },
+  { value: "heart_health", label: "Heart Health", icon: "❤️" },
+  { value: "blood_sugar_concern", label: "Blood Sugar", icon: "🩸" },
+  { value: "menstrual_issues", label: "Period Issues", icon: "🌸" },
+  { value: "weight_management", label: "Weight", icon: "⚖️" },
+  { value: "general_wellness", label: "General Wellness", icon: "🌿" },
+  { value: "other", label: "Something Else", icon: "💬" },
 ];
+
+const GOAL_OPTIONS: { value: string; label: string; desc: string }[] = [
+  { value: "find_herb_for_concern", label: "Find herbs for my concern", desc: "Get personalized herb recommendations" },
+  { value: "check_safety_of_current_herb", label: "Check if a herb is safe for me", desc: "Verify safety of something you already take" },
+  { value: "learn_about_specific_herb", label: "Learn about a specific herb", desc: "Get evidence-based information" },
+  { value: "general_ayurvedic_guidance", label: "General guidance", desc: "General Ayurvedic wellness advice" },
+];
+
+// ============================================
+// RED FLAGS (inline, single toggle)
+// ============================================
+
+const RED_FLAG_ITEMS = [
+  { key: "chest_pain", label: "Chest pain or tightness" },
+  { key: "difficulty_breathing", label: "Difficulty breathing" },
+  { key: "blood_in_stool_vomit", label: "Blood in stool or vomit" },
+  { key: "high_fever_over_103", label: "High fever (>103°F)" },
+  { key: "sudden_weakness_paralysis", label: "Sudden weakness or paralysis" },
+  { key: "severe_allergic_reaction", label: "Severe allergic reaction" },
+  { key: "yellowing_skin_eyes", label: "Yellow skin or eyes" },
+  { key: "suicidal_thoughts", label: "Thoughts of self-harm" },
+];
+
+// ============================================
+// FORM STATE
+// ============================================
 
 interface FormState {
   age: string;
   sex: string;
   pregnancy_status: string;
+  has_conditions: boolean | null;
   chronic_conditions: string[];
+  expanded_condition_group: string | null;
+  has_medications: boolean | null;
   medications: string[];
+  expanded_med_group: string | null;
   current_herbs: string;
   symptom_primary: string;
   symptom_duration: string;
   symptom_severity: string;
   user_goal: string;
+  has_red_flags: boolean | null;
   red_flags: Record<string, boolean>;
 }
 
@@ -77,14 +254,19 @@ export default function IntakePage() {
     age: "",
     sex: "",
     pregnancy_status: "",
+    has_conditions: null,
     chronic_conditions: [],
+    expanded_condition_group: null,
+    has_medications: null,
     medications: [],
+    expanded_med_group: null,
     current_herbs: "",
     symptom_primary: "",
     symptom_duration: "",
     symptom_severity: "",
     user_goal: "",
-    red_flags: Object.fromEntries(RED_FLAG_QUESTIONS.map((q) => [q.key, false])),
+    has_red_flags: null,
+    red_flags: Object.fromEntries(RED_FLAG_ITEMS.map((q) => [q.key, false])),
   });
 
   useEffect(() => {
@@ -94,15 +276,23 @@ export default function IntakePage() {
     }
   }, [router]);
 
-  function toggleArrayField(field: "chronic_conditions" | "medications", value: string) {
+  function toggleCondition(value: string) {
     setForm((prev) => {
-      const arr = prev[field];
-      if (value === "none") return { ...prev, [field]: ["none"] };
-      const filtered = arr.filter((v) => v !== "none");
-      if (filtered.includes(value)) {
-        return { ...prev, [field]: filtered.filter((v) => v !== value) };
+      const arr = prev.chronic_conditions;
+      if (arr.includes(value)) {
+        return { ...prev, chronic_conditions: arr.filter((v) => v !== value) };
       }
-      return { ...prev, [field]: [...filtered, value] };
+      return { ...prev, chronic_conditions: [...arr, value] };
+    });
+  }
+
+  function toggleMedication(value: string) {
+    setForm((prev) => {
+      const arr = prev.medications;
+      if (arr.includes(value)) {
+        return { ...prev, medications: arr.filter((v) => v !== value) };
+      }
+      return { ...prev, medications: [...arr, value] };
     });
   }
 
@@ -114,23 +304,23 @@ export default function IntakePage() {
           Number(form.age) >= 1 &&
           Number(form.age) <= 120 &&
           form.sex !== "" &&
-          form.pregnancy_status !== ""
+          form.pregnancy_status !== "" &&
+          form.has_red_flags !== null
         );
       case 2:
-        return true; // Red flags always answerable
+        return (
+          form.has_conditions !== null &&
+          form.has_medications !== null &&
+          (form.has_conditions === false || form.chronic_conditions.length > 0) &&
+          (form.has_medications === false || form.medications.length > 0)
+        );
       case 3:
-        return form.chronic_conditions.length > 0;
-      case 4:
-        return form.medications.length > 0;
-      case 5:
         return (
           form.symptom_primary !== "" &&
           form.symptom_duration !== "" &&
           form.symptom_severity !== "" &&
           form.user_goal !== ""
         );
-      case 6:
-        return true;
       default:
         return false;
     }
@@ -140,12 +330,15 @@ export default function IntakePage() {
     setSubmitting(true);
     setError(null);
 
+    const conditions = form.has_conditions ? form.chronic_conditions : ["none"];
+    const medications = form.has_medications ? form.medications : ["none"];
+
     const payload = {
       age: Number(form.age),
       sex: form.sex,
       pregnancy_status: form.pregnancy_status,
-      chronic_conditions: form.chronic_conditions,
-      medications: form.medications,
+      chronic_conditions: conditions,
+      medications: medications,
       current_herbs: form.current_herbs
         .split(",")
         .map((h) => h.trim())
@@ -182,25 +375,31 @@ export default function IntakePage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Progress bar */}
-      <div className="flex gap-1 mb-8">
-        {([1, 2, 3, 4, 5, 6] as Step[]).map((s) => (
-          <div
-            key={s}
-            className={`h-1.5 flex-1 rounded-full transition-colors ${
-              s <= step ? "bg-ayurv-primary" : "bg-gray-200"
-            }`}
-          />
+      {/* Progress bar — 3 steps */}
+      <div className="flex gap-1.5 mb-6">
+        {([1, 2, 3] as Step[]).map((s) => (
+          <div key={s} className="flex-1 flex flex-col items-center gap-1">
+            <div
+              className={`h-1.5 w-full rounded-full transition-colors ${
+                s <= step ? "bg-ayurv-primary" : "bg-gray-200"
+              }`}
+            />
+            <span className={`text-[10px] ${s <= step ? "text-ayurv-primary font-medium" : "text-gray-400"}`}>
+              {s === 1 ? "About You" : s === 2 ? "Health" : "Concern"}
+            </span>
+          </div>
         ))}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        {/* STEP 1: Demographics */}
+        {/* ──────── STEP 1: About You ──────── */}
         {step === 1 && (
           <div>
-            <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
+            <h2 className="text-lg font-semibold mb-1">About You</h2>
+            <p className="text-sm text-gray-500 mb-5">Quick basics so we can check herb safety for you.</p>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Age */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
                 <input
@@ -210,14 +409,13 @@ export default function IntakePage() {
                   value={form.age}
                   onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent focus:border-transparent"
-                  placeholder="Enter your age"
+                  placeholder="Your age"
                 />
               </div>
 
+              {/* Sex */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Biological Sex
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Biological Sex</label>
                 <div className="flex gap-3">
                   {(["male", "female", "other"] as const).map((s) => (
                     <button
@@ -242,6 +440,7 @@ export default function IntakePage() {
                 </div>
               </div>
 
+              {/* Pregnancy — only for non-male */}
               {form.sex !== "male" && form.sex !== "" && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -249,9 +448,7 @@ export default function IntakePage() {
                   </label>
                   <select
                     value={form.pregnancy_status}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, pregnancy_status: e.target.value }))
-                    }
+                    onChange={(e) => setForm((p) => ({ ...p, pregnancy_status: e.target.value }))}
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent"
                   >
                     <option value="">Select...</option>
@@ -260,165 +457,347 @@ export default function IntakePage() {
                     <option value="pregnant_trimester_2">Pregnant — 2nd trimester</option>
                     <option value="pregnant_trimester_3">Pregnant — 3rd trimester</option>
                     <option value="trying_to_conceive">Trying to conceive</option>
-                    <option value="lactating">Breastfeeding / Lactating</option>
+                    <option value="lactating">Breastfeeding</option>
                   </select>
                 </div>
               )}
+
+              {/* Red flags — inline quick check */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Are you experiencing any urgent symptoms right now?
+                </p>
+                <div className="flex gap-3 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({
+                      ...p,
+                      has_red_flags: false,
+                      red_flags: Object.fromEntries(RED_FLAG_ITEMS.map((q) => [q.key, false])),
+                    }))}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_red_flags === false
+                        ? "bg-risk-green-light text-risk-green border-risk-green/30"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    No, I'm fine
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, has_red_flags: true }))}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_red_flags === true
+                        ? "bg-risk-red-light text-risk-red border-risk-red/30"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Yes, I have some
+                  </button>
+                </div>
+
+                {form.has_red_flags === true && (
+                  <div className="space-y-2 bg-risk-red-light/50 rounded-lg p-3">
+                    {RED_FLAG_ITEMS.map((q) => (
+                      <label key={q.key} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={form.red_flags[q.key]}
+                          onChange={() =>
+                            setForm((p) => ({
+                              ...p,
+                              red_flags: { ...p.red_flags, [q.key]: !p.red_flags[q.key] },
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-gray-300 text-risk-red focus:ring-risk-red"
+                        />
+                        <span className="text-sm text-gray-700">{q.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* STEP 2: Red Flags */}
+        {/* ──────── STEP 2: Health Profile ──────── */}
         {step === 2 && (
           <div>
-            <h2 className="text-lg font-semibold mb-1">Safety Screening</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Please answer honestly. If any apply, we will direct you to seek medical care
-              immediately.
+            <h2 className="text-lg font-semibold mb-1">Your Health Profile</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              This helps us check which herbs are safe for you.
             </p>
 
-            <div className="space-y-3">
-              {RED_FLAG_QUESTIONS.map((q) => (
-                <label
-                  key={q.key}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.red_flags[q.key]}
-                    onChange={() =>
-                      setForm((p) => ({
-                        ...p,
-                        red_flags: { ...p.red_flags, [q.key]: !p.red_flags[q.key] },
-                      }))
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-risk-red focus:ring-risk-red"
-                  />
-                  <span className="text-sm text-gray-700">{q.label}</span>
+            <div className="space-y-6">
+              {/* Conditions */}
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Do you have any health conditions?
+                </p>
+                <div className="flex gap-3 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, has_conditions: false, chronic_conditions: [] }))}
+                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_conditions === false
+                        ? "bg-ayurv-primary text-white border-ayurv-primary"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    No conditions
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, has_conditions: true }))}
+                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_conditions === true
+                        ? "bg-ayurv-primary text-white border-ayurv-primary"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Yes, I have some
+                  </button>
+                </div>
+
+                {form.has_conditions === true && (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {CONDITION_GROUPS.map((group) => (
+                      <div key={group.label} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              expanded_condition_group:
+                                p.expanded_condition_group === group.label ? null : group.label,
+                            }))
+                          }
+                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <span className="flex items-center gap-2">
+                            {group.label}
+                            {group.items.some((i) => form.chronic_conditions.includes(i.value)) && (
+                              <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
+                            )}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {form.expanded_condition_group === group.label ? "▲" : "▼"}
+                          </span>
+                        </button>
+                        {form.expanded_condition_group === group.label && (
+                          <div className="px-3 pb-2.5 flex flex-wrap gap-1.5">
+                            {group.items.map((item) => (
+                              <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => toggleCondition(item.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                  form.chronic_conditions.includes(item.value)
+                                    ? "bg-ayurv-primary text-white border-ayurv-primary"
+                                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {form.has_conditions === true && form.chronic_conditions.length > 0 && (
+                  <div className="mt-2 text-xs text-ayurv-primary">
+                    Selected: {form.chronic_conditions.length} condition{form.chronic_conditions.length > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+
+              {/* Medications */}
+              <div className="border-t border-gray-100 pt-5">
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Are you taking any medications?
+                </p>
+                <div className="flex gap-3 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, has_medications: false, medications: [] }))}
+                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_medications === false
+                        ? "bg-ayurv-primary text-white border-ayurv-primary"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    No medications
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, has_medications: true }))}
+                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      form.has_medications === true
+                        ? "bg-ayurv-primary text-white border-ayurv-primary"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    Yes, I take some
+                  </button>
+                </div>
+
+                {form.has_medications === true && (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {MEDICATION_GROUPS.map((group) => (
+                      <div key={group.label} className="border border-gray-200 rounded-lg overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              expanded_med_group:
+                                p.expanded_med_group === group.label ? null : group.label,
+                            }))
+                          }
+                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          <span className="flex items-center gap-2">
+                            {group.label}
+                            {group.items.some((i) => form.medications.includes(i.value)) && (
+                              <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
+                            )}
+                          </span>
+                          <span className="text-gray-400 text-xs">
+                            {form.expanded_med_group === group.label ? "▲" : "▼"}
+                          </span>
+                        </button>
+                        {form.expanded_med_group === group.label && (
+                          <div className="px-3 pb-2.5 flex flex-wrap gap-1.5">
+                            {group.items.map((item) => (
+                              <button
+                                key={item.value}
+                                type="button"
+                                onClick={() => toggleMedication(item.value)}
+                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                                  form.medications.includes(item.value)
+                                    ? "bg-ayurv-primary text-white border-ayurv-primary"
+                                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {form.has_medications === true && form.medications.length > 0 && (
+                  <div className="mt-2 text-xs text-ayurv-primary">
+                    Selected: {form.medications.length} medication{form.medications.length > 1 ? "s" : ""}
+                  </div>
+                )}
+              </div>
+
+              {/* Current herbs */}
+              <div className="border-t border-gray-100 pt-5">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Any Ayurvedic herbs you already take? <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
-              ))}
+                <input
+                  type="text"
+                  value={form.current_herbs}
+                  onChange={(e) => setForm((p) => ({ ...p, current_herbs: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent focus:border-transparent"
+                  placeholder="e.g. Ashwagandha, Triphala"
+                />
+              </div>
             </div>
           </div>
         )}
 
-        {/* STEP 3: Conditions */}
+        {/* ──────── STEP 3: Concern & Goal ──────── */}
         {step === 3 && (
           <div>
-            <h2 className="text-lg font-semibold mb-1">Existing Health Conditions</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Select all that apply. This determines which herbs are safe for you.
+            <h2 className="text-lg font-semibold mb-1">What Brings You Here?</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Pick your main concern and we will find the right herbs for you.
             </p>
 
-            <div className="flex flex-wrap gap-2 max-h-80 overflow-y-auto">
-              {Object.entries(conditionLabels).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => toggleArrayField("chronic_conditions", value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    form.chronic_conditions.includes(value)
-                      ? "bg-ayurv-primary text-white border-ayurv-primary"
-                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* STEP 4: Medications */}
-        {step === 4 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Current Medications</h2>
-            <p className="text-sm text-gray-500 mb-4">
-              Select all that you are currently taking. Critical for interaction checking.
-            </p>
-
-            <div className="flex flex-wrap gap-2 max-h-80 overflow-y-auto">
-              {Object.entries(medicationLabels).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => toggleArrayField("medications", value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    form.medications.includes(value)
-                      ? "bg-ayurv-primary text-white border-ayurv-primary"
-                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* STEP 5: Concern & Goal */}
-        {step === 5 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Your Concern</h2>
-
-            <div className="space-y-4">
+            <div className="space-y-5">
+              {/* Concern grid */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Primary concern
+                  Main concern
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {SYMPTOM_OPTIONS.map((opt) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CONCERN_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setForm((p) => ({ ...p, symptom_primary: opt.value }))}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors text-left ${
                         form.symptom_primary === opt.value
                           ? "bg-ayurv-primary text-white border-ayurv-primary"
-                          : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      {opt.label}
+                      <span className="text-base">{opt.icon}</span>
+                      <span className="font-medium text-xs">{opt.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
+              {/* Duration & Severity */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">How long?</label>
                   <select
                     value={form.symptom_duration}
                     onChange={(e) => setForm((p) => ({ ...p, symptom_duration: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent"
                   >
                     <option value="">Select...</option>
-                    <option value="less_than_1_week">Less than 1 week</option>
-                    <option value="1_4_weeks">1-4 weeks</option>
+                    <option value="less_than_1_week">Less than a week</option>
+                    <option value="1_4_weeks">A few weeks</option>
                     <option value="1_3_months">1-3 months</option>
                     <option value="3_6_months">3-6 months</option>
                     <option value="over_6_months">Over 6 months</option>
-                    <option value="chronic_ongoing">Chronic / Ongoing</option>
+                    <option value="chronic_ongoing">Ongoing / chronic</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
-                  <select
-                    value={form.symptom_severity}
-                    onChange={(e) => setForm((p) => ({ ...p, symptom_severity: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                  >
-                    <option value="">Select...</option>
-                    <option value="mild">Mild</option>
-                    <option value="moderate">Moderate</option>
-                    <option value="severe">Severe</option>
-                  </select>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">How bad?</label>
+                  <div className="flex gap-2">
+                    {(["mild", "moderate", "severe"] as const).map((sev) => (
+                      <button
+                        key={sev}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, symptom_severity: sev }))}
+                        className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                          form.symptom_severity === sev
+                            ? sev === "severe"
+                              ? "bg-risk-red text-white border-risk-red"
+                              : sev === "moderate"
+                                ? "bg-risk-amber text-white border-risk-amber"
+                                : "bg-risk-green text-white border-risk-green"
+                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                        }`}
+                      >
+                        {sev.charAt(0).toUpperCase() + sev.slice(1)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
+              {/* Goal */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  What do you want from this session?
+                  What would you like to do?
                 </label>
                 <div className="space-y-2">
                   {GOAL_OPTIONS.map((opt) => (
@@ -426,56 +805,29 @@ export default function IntakePage() {
                       key={opt.value}
                       type="button"
                       onClick={() => setForm((p) => ({ ...p, user_goal: opt.value }))}
-                      className={`w-full text-left px-4 py-2.5 rounded-lg border text-sm transition-colors ${
+                      className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${
                         form.user_goal === opt.value
                           ? "bg-ayurv-primary text-white border-ayurv-primary"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
                       }`}
                     >
-                      {opt.label}
+                      <span className="font-medium">{opt.label}</span>
+                      <span className={`block text-xs mt-0.5 ${
+                        form.user_goal === opt.value ? "text-white/80" : "text-gray-400"
+                      }`}>
+                        {opt.desc}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
+                  {error}
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
-        {/* STEP 6: Current Herbs + Review */}
-        {step === 6 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-4">Almost Done</h2>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Herbs you currently take (optional, comma-separated)
-              </label>
-              <input
-                type="text"
-                value={form.current_herbs}
-                onChange={(e) => setForm((p) => ({ ...p, current_herbs: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                placeholder="e.g. Ashwagandha, Triphala"
-              />
-            </div>
-
-            <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-1 mb-6">
-              <p><strong>Age:</strong> {form.age}</p>
-              <p><strong>Sex:</strong> {form.sex}</p>
-              <p><strong>Pregnancy:</strong> {form.pregnancy_status.replace(/_/g, " ")}</p>
-              <p><strong>Conditions:</strong> {form.chronic_conditions.join(", ") || "—"}</p>
-              <p><strong>Medications:</strong> {form.medications.join(", ") || "—"}</p>
-              <p><strong>Concern:</strong> {form.symptom_primary.replace(/_/g, " ")}</p>
-              <p><strong>Severity:</strong> {form.symptom_severity}</p>
-              <p><strong>Duration:</strong> {form.symptom_duration.replace(/_/g, " ")}</p>
-              <p><strong>Goal:</strong> {form.user_goal.replace(/_/g, " ")}</p>
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg mb-4">
-                {error}
-              </div>
-            )}
           </div>
         )}
 
@@ -490,12 +842,12 @@ export default function IntakePage() {
             Back
           </button>
 
-          {step < 6 ? (
+          {step < 3 ? (
             <button
               type="button"
-              onClick={() => setStep((s) => Math.min(6, s + 1) as Step)}
+              onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
               disabled={!canAdvance()}
-              className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 canAdvance()
                   ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary"
                   : "bg-gray-200 text-gray-400 cursor-not-allowed"
@@ -507,10 +859,10 @@ export default function IntakePage() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={submitting}
-              className="px-6 py-2 rounded-lg text-sm font-medium bg-ayurv-primary text-white hover:bg-ayurv-secondary disabled:opacity-50"
+              disabled={submitting || !canAdvance()}
+              className="px-6 py-2.5 rounded-lg text-sm font-medium bg-ayurv-primary text-white hover:bg-ayurv-secondary disabled:opacity-50"
             >
-              {submitting ? "Assessing..." : "Run Assessment"}
+              {submitting ? "Assessing..." : "Get My Results"}
             </button>
           )}
         </div>
