@@ -30,7 +30,13 @@ const GRADE_LABELS: Record<string, string> = {
   D: "Traditional Use Only",
 };
 
-function EvidenceBadge({ grade }: { grade: EvidenceGrade | null }) {
+function EvidenceBadge({
+  grade,
+  onClick,
+}: {
+  grade: EvidenceGrade | null;
+  onClick?: () => void;
+}) {
   if (!grade) {
     return (
       <span className="evidence-badge bg-gray-100 text-gray-400">
@@ -38,10 +44,15 @@ function EvidenceBadge({ grade }: { grade: EvidenceGrade | null }) {
       </span>
     );
   }
+
+  const classes = `evidence-badge ${GRADE_COLORS[grade] || "bg-gray-100 text-gray-600"} ${onClick ? "cursor-pointer hover:opacity-80" : ""}`;
+
   return (
     <span
-      className={`evidence-badge ${GRADE_COLORS[grade] || "bg-gray-100 text-gray-600"}`}
+      className={classes}
       title={GRADE_LABELS[grade] || grade}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
     >
       Grade {grade}
     </span>
@@ -76,13 +87,15 @@ const SEVERITY_COLORS: Record<InteractionSeverity, string> = {
 
 function DosageInfo({
   dosage,
+  prefix,
 }: {
   dosage: SafeHerb["dosage"] | CautionHerb["dosage"];
+  prefix?: string;
 }) {
   return (
     <div className="mt-3 pt-3 border-t border-gray-100">
       <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
-        Educational Dosage Information
+        {prefix || "Educational Dosage Information"}
       </p>
       <p className="text-xs text-gray-400 italic mb-2">{dosage.disclaimer}</p>
       <div className="space-y-1.5">
@@ -112,12 +125,26 @@ export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
   return (
     <div className="border-2 border-risk-red bg-risk-red-light rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-gray-900">{herb.herb_name}</h3>
+        <h3 className="font-semibold text-gray-900">
+          {herb.herb_name}
+          <span className="text-risk-red font-bold ml-1">— NOT SAFE</span>
+        </h3>
         <span className="risk-badge-red">AVOID</span>
       </div>
-      <p className="text-sm text-gray-700 leading-relaxed">{herb.reason}</p>
+      <p className="text-sm text-gray-700 leading-relaxed">
+        <span className="font-medium">Why: </span>
+        {herb.reason}
+      </p>
       <p className="text-xs text-gray-500 mt-2">
-        Trigger: {herb.trigger_type === "pregnancy" ? "Pregnancy/Reproductive status" : herb.trigger_type === "medication" ? "Drug interaction" : "Health condition"}
+        Trigger:{" "}
+        {herb.trigger_type === "pregnancy"
+          ? "Pregnancy/Reproductive status"
+          : herb.trigger_type === "medication"
+            ? "Drug interaction"
+            : "Health condition"}
+      </p>
+      <p className="text-xs text-risk-red font-medium mt-2">
+        What to do: Discuss alternatives with your doctor.
       </p>
       {/* NO DOSAGE INFORMATION FOR BLOCKED HERBS — by design */}
     </div>
@@ -128,16 +155,39 @@ export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
 // CAUTION HERB CARD (YELLOW)
 // ============================================
 
-export function CautionHerbCard({ herb }: { herb: CautionHerb }) {
+export function CautionHerbCard({
+  herb,
+  onEvidenceClick,
+}: {
+  herb: CautionHerb;
+  onEvidenceClick?: (herbId: string, herbName: string) => void;
+}) {
   return (
     <div className="border-2 border-risk-amber bg-risk-amber-light rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900">{herb.herb_name}</h3>
-          <EvidenceBadge grade={herb.evidence_grade} />
+          <h3 className="font-semibold text-gray-900">
+            {herb.herb_name}
+            <span className="text-risk-amber font-bold ml-1">
+              — USE WITH CARE
+            </span>
+          </h3>
+          <EvidenceBadge
+            grade={herb.evidence_grade}
+            onClick={
+              onEvidenceClick
+                ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
+                : undefined
+            }
+          />
         </div>
         <span className="risk-badge-yellow">CAUTION</span>
       </div>
+
+      <p className="text-xs text-risk-amber font-medium mb-2">
+        {herb.cautions.length} warning{herb.cautions.length > 1 ? "s" : ""} for
+        your profile:
+      </p>
 
       <div className="space-y-2 mb-3">
         {herb.cautions.map((caution, i) => (
@@ -146,13 +196,14 @@ export function CautionHerbCard({ herb }: { herb: CautionHerb }) {
             className="bg-white/60 rounded p-2.5 text-sm border border-amber-200"
           >
             <div className="flex items-center gap-2 mb-1">
-              {caution.type === "medication_interaction" && caution.severity && (
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded font-medium ${SEVERITY_COLORS[caution.severity]}`}
-                >
-                  {SEVERITY_LABELS[caution.severity]}
-                </span>
-              )}
+              {caution.type === "medication_interaction" &&
+                caution.severity && (
+                  <span
+                    className={`text-xs px-1.5 py-0.5 rounded font-medium ${SEVERITY_COLORS[caution.severity]}`}
+                  >
+                    {SEVERITY_LABELS[caution.severity]}
+                  </span>
+                )}
               <span className="text-xs text-gray-500 capitalize">
                 {caution.type.replace(/_/g, " ")}
               </span>
@@ -167,7 +218,10 @@ export function CautionHerbCard({ herb }: { herb: CautionHerb }) {
         ))}
       </div>
 
-      <DosageInfo dosage={herb.dosage} />
+      <DosageInfo
+        dosage={herb.dosage}
+        prefix="Dosage (discuss with doctor first)"
+      />
     </div>
   );
 }
@@ -176,20 +230,43 @@ export function CautionHerbCard({ herb }: { herb: CautionHerb }) {
 // SAFE HERB CARD (GREEN)
 // ============================================
 
-export function SafeHerbCard({ herb }: { herb: SafeHerb }) {
+export function SafeHerbCard({
+  herb,
+  onEvidenceClick,
+}: {
+  herb: SafeHerb;
+  onEvidenceClick?: (herbId: string, herbName: string) => void;
+}) {
   return (
     <div className="border-2 border-risk-green bg-risk-green-light rounded-lg p-4">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900">{herb.herb_name}</h3>
-          <EvidenceBadge grade={herb.evidence_grade} />
+          <h3 className="font-semibold text-gray-900">
+            {herb.herb_name}
+            <span className="text-risk-green font-bold ml-1">
+              — LOWER RISK
+            </span>
+          </h3>
         </div>
-        <span className="risk-badge-green">SAFE</span>
+        <span className="risk-badge-green">LOWER RISK</span>
+      </div>
+
+      <div className="flex items-center gap-1.5 mb-1">
+        <span className="text-xs text-gray-500 font-medium">Evidence:</span>
+        <EvidenceBadge
+          grade={herb.evidence_grade}
+          onClick={
+            onEvidenceClick
+              ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
+              : undefined
+          }
+        />
       </div>
 
       {herb.evidence_grade && (
         <p className="text-xs text-gray-500 mb-1">
-          {GRADE_LABELS[herb.evidence_grade] || `Grade ${herb.evidence_grade}`}{" "}
+          {GRADE_LABELS[herb.evidence_grade] ||
+            `Grade ${herb.evidence_grade}`}{" "}
           for your concern
         </p>
       )}
@@ -200,7 +277,7 @@ export function SafeHerbCard({ herb }: { herb: SafeHerb }) {
         </p>
       )}
 
-      <DosageInfo dosage={herb.dosage} />
+      <DosageInfo dosage={herb.dosage} prefix="Standard dosage range" />
     </div>
   );
 }

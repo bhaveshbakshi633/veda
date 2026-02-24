@@ -48,13 +48,13 @@ export default function LandingPage() {
     <div className="max-w-2xl mx-auto">
       <section className="text-center mb-10">
         <h1 className="text-3xl font-bold text-ayurv-primary mb-3">
-          Ayurvedic Risk Intelligence
+          Ayurv — Herb Safety Intelligence
         </h1>
         <p className="text-gray-600 text-lg">
-          Evidence-graded herb information with safety-first risk assessment.
+          Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.
         </p>
         <p className="text-sm text-gray-400 mt-2">
-          10 herbs &middot; A/B/C/D evidence grading &middot; Drug interaction checking &middot; Indian context
+          10 herbs &middot; Drug interaction checks &middot; Evidence-graded claims &middot; Built for Indian healthcare
         </p>
       </section>
 
@@ -64,11 +64,10 @@ export default function LandingPage() {
         <div className="bg-amber-50 border-l-4 border-risk-amber p-4 mb-6 text-sm text-gray-700">
           <p className="font-medium text-risk-amber mb-1">Important Disclaimer</p>
           <p>
-            This tool provides structured educational information about Ayurvedic herbs based on
-            classical references and available scientific evidence. It does{" "}
-            <strong>NOT</strong> diagnose any medical condition, prescribe any treatment, or replace
-            professional medical advice. Herbal products can interact with modern medicines and
-            medical conditions.
+            Ayurv checks Ayurvedic herbs against your health profile using published clinical
+            evidence and known drug interactions. It does{" "}
+            <strong>NOT</strong> diagnose, prescribe, or replace your doctor. Herbal products can
+            interact with prescription medications — this tool helps you check.
           </p>
         </div>
 

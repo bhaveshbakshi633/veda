@@ -3,9 +3,9 @@ import "./globals.css";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
 
 export const metadata: Metadata = {
-  title: "Ayurv — Ayurvedic Risk Intelligence",
+  title: "Ayurv — Herb Safety Intelligence",
   description:
-    "Evidence-graded, safety-first Ayurvedic herb information. Not a prescription service.",
+    "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
