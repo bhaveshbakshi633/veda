@@ -18,6 +18,8 @@ import type {
   HerbRow,
   HerbConditionRiskRow,
   HerbMedicationInteractionRow,
+  HerbHerbInteractionRow,
+  HerbAgeRestrictionRow,
   EvidenceClaimRow,
   EvidenceGrade,
   InteractionSeverity,
@@ -284,6 +286,266 @@ export function filterBlockedHerbs(
 }
 
 // ============================================
+// STEP 3B: AGE-BASED RESTRICTIONS
+// ============================================
+
+export function applyAgeRestrictions(
+  herbs: HerbRow[],
+  ageRestrictions: HerbAgeRestrictionRow[],
+  userAgeGroup: AgeGroup
+): {
+  blocked: BlockedHerb[];
+  remaining: HerbRow[];
+  cautions: { herbId: string; entry: CautionEntry }[];
+  auditEntries: AuditEntry[];
+} {
+  const blocked: BlockedHerb[] = [];
+  const remaining: HerbRow[] = [];
+  const cautions: { herbId: string; entry: CautionEntry }[] = [];
+  const auditEntries: AuditEntry[] = [];
+
+  // restrictions matching this user's age group
+  const matching = ageRestrictions.filter((r) => r.age_group === userAgeGroup);
+  const restrictionMap = new Map(matching.map((r) => [r.herb_id, r]));
+
+  for (const herb of herbs) {
+    const restriction = restrictionMap.get(herb.id);
+
+    if (restriction?.restriction === "blocked") {
+      blocked.push({
+        herb_id: herb.id,
+        herb_name: herb.names.english,
+        reason: restriction.explanation,
+        trigger: `age_${userAgeGroup}`,
+        trigger_type: "condition",
+        risk_code: "red",
+      });
+      auditEntries.push({
+        event_type: "HERB_BLOCKED_AGE",
+        event_data: {
+          herb_id: herb.id,
+          herb_name: herb.names.english,
+          age_group: userAgeGroup,
+          explanation: restriction.explanation,
+        },
+        herb_id: herb.id,
+        risk_code: "red",
+        trigger_type: "condition",
+        trigger_value: `age_${userAgeGroup}`,
+      });
+    } else {
+      remaining.push(herb);
+
+      // caution or dose_reduce — these get added as caution entries later
+      if (restriction) {
+        cautions.push({
+          herbId: herb.id,
+          entry: {
+            type: "condition",
+            trigger: `age_${userAgeGroup}`,
+            risk_code: "yellow",
+            explanation: restriction.explanation,
+          },
+        });
+        auditEntries.push({
+          event_type: "HERB_AGE_CAUTION",
+          event_data: {
+            herb_id: herb.id,
+            herb_name: herb.names.english,
+            age_group: userAgeGroup,
+            restriction: restriction.restriction,
+            explanation: restriction.explanation,
+          },
+          herb_id: herb.id,
+          risk_code: "yellow",
+          trigger_type: "condition",
+          trigger_value: `age_${userAgeGroup}`,
+        });
+      }
+    }
+  }
+
+  return { blocked, remaining, cautions, auditEntries };
+}
+
+// ============================================
+// STEP 3C: HERB-HERB INTERACTION CHECK
+// ============================================
+
+export function checkHerbHerbInteractions(
+  herbs: HerbRow[],
+  herbHerbInteractions: HerbHerbInteractionRow[],
+  userCurrentHerbs: string[]
+): {
+  blocked: BlockedHerb[];
+  remaining: HerbRow[];
+  cautions: { herbId: string; entry: CautionEntry }[];
+  auditEntries: AuditEntry[];
+} {
+  const blocked: BlockedHerb[] = [];
+  const remaining: HerbRow[] = [];
+  const cautions: { herbId: string; entry: CautionEntry }[] = [];
+  const auditEntries: AuditEntry[] = [];
+
+  // no current herbs = no herb-herb interactions possible
+  if (userCurrentHerbs.length === 0) {
+    return { blocked, remaining: herbs, cautions, auditEntries };
+  }
+
+  for (const herb of herbs) {
+    const interactions = herbHerbInteractions.filter((i) => {
+      // check if this herb interacts with any of user's current herbs
+      const pair = [i.herb_id_1, i.herb_id_2];
+      return (
+        pair.includes(herb.id) &&
+        userCurrentHerbs.some((uh) => pair.includes(uh) && uh !== herb.id)
+      );
+    });
+
+    // red herb-herb interaction = block
+    const redInteractions = interactions.filter((i) => i.risk_code === "red");
+    if (redInteractions.length > 0) {
+      const interactingHerbId = redInteractions.map((i) =>
+        i.herb_id_1 === herb.id ? i.herb_id_2 : i.herb_id_1
+      );
+      blocked.push({
+        herb_id: herb.id,
+        herb_name: herb.names.english,
+        reason: redInteractions
+          .map(
+            (i) =>
+              `Dangerous interaction with ${
+                i.herb_id_1 === herb.id ? i.herb_id_2 : i.herb_id_1
+              }: ${i.mechanism}`
+          )
+          .join(" | "),
+        trigger: interactingHerbId[0],
+        trigger_type: "condition",
+        risk_code: "red",
+      });
+      auditEntries.push({
+        event_type: "HERB_BLOCKED_HERB_INTERACTION",
+        event_data: {
+          herb_id: herb.id,
+          herb_name: herb.names.english,
+          interacting_herbs: interactingHerbId,
+          mechanisms: redInteractions.map((i) => i.mechanism),
+        },
+        herb_id: herb.id,
+        risk_code: "red",
+        trigger_type: "condition",
+      });
+    } else {
+      remaining.push(herb);
+
+      // yellow interactions = caution
+      for (const interaction of interactions.filter(
+        (i) => i.risk_code === "yellow"
+      )) {
+        const otherHerb =
+          interaction.herb_id_1 === herb.id
+            ? interaction.herb_id_2
+            : interaction.herb_id_1;
+        cautions.push({
+          herbId: herb.id,
+          entry: {
+            type: "herb_herb_interaction",
+            trigger: otherHerb,
+            severity: interaction.severity,
+            explanation: interaction.mechanism,
+            clinical_action: interaction.clinical_action,
+          },
+        });
+        auditEntries.push({
+          event_type: "HERB_HERB_CAUTION",
+          event_data: {
+            herb_id: herb.id,
+            herb_name: herb.names.english,
+            interacting_herb: otherHerb,
+            category: interaction.interaction_category,
+            severity: interaction.severity,
+            mechanism: interaction.mechanism,
+          },
+          herb_id: herb.id,
+          risk_code: "yellow",
+          trigger_type: "condition",
+          trigger_value: otherHerb,
+        });
+      }
+    }
+  }
+
+  return { blocked, remaining, cautions, auditEntries };
+}
+
+// ============================================
+// STEP 3D: DURATION RESTRICTION CHECK
+// ============================================
+
+// symptom_duration values mapped to approximate weeks
+const DURATION_TO_WEEKS: Record<string, number> = {
+  less_than_1_week: 1,
+  "1_4_weeks": 4,
+  "1_3_months": 12,
+  "3_6_months": 24,
+  over_6_months: 36,
+  chronic_ongoing: 52,
+};
+
+export function checkDurationRestrictions(
+  herbs: HerbRow[],
+  symptomDuration: string
+): {
+  cautions: { herbId: string; entry: CautionEntry }[];
+  auditEntries: AuditEntry[];
+} {
+  const cautions: { herbId: string; entry: CautionEntry }[] = [];
+  const auditEntries: AuditEntry[] = [];
+
+  const userDurationWeeks = DURATION_TO_WEEKS[symptomDuration] ?? 0;
+
+  // only flag if user's condition duration suggests long-term use
+  if (userDurationWeeks < 12) {
+    return { cautions, auditEntries };
+  }
+
+  for (const herb of herbs) {
+    const maxStudied = herb.dosage_ranges.max_studied_duration_weeks;
+    const hasLongTermData = herb.dosage_ranges.long_term_safety_data;
+
+    // flag if: herb has a known max studied duration AND user's condition suggests
+    // they'd use it beyond that duration AND no long-term safety data exists
+    if (maxStudied && maxStudied < userDurationWeeks && !hasLongTermData) {
+      cautions.push({
+        herbId: herb.id,
+        entry: {
+          type: "condition",
+          trigger: "duration_exceeds_study",
+          risk_code: "yellow",
+          explanation: `Clinical studies only cover ${maxStudied} weeks of use. Your condition (${symptomDuration.replace(/_/g, " ")}) suggests longer use. Long-term safety data is not available.`,
+        },
+      });
+      auditEntries.push({
+        event_type: "DURATION_CAUTION",
+        event_data: {
+          herb_id: herb.id,
+          herb_name: herb.names.english,
+          max_studied_weeks: maxStudied,
+          user_duration: symptomDuration,
+          user_duration_weeks: userDurationWeeks,
+        },
+        herb_id: herb.id,
+        risk_code: "yellow",
+        trigger_type: "condition",
+        trigger_value: "duration_exceeds_study",
+      });
+    }
+  }
+
+  return { cautions, auditEntries };
+}
+
+// ============================================
 // STEP 4: CALCULATE CAUTION SCORE (YELLOW)
 // ============================================
 
@@ -292,7 +554,8 @@ export function calculateCautionScore(
   conditionRisks: HerbConditionRiskRow[],
   medicationInteractions: HerbMedicationInteractionRow[],
   userConditionIds: string[],
-  userMedicationIds: string[]
+  userMedicationIds: string[],
+  extraCautions?: { herbId: string; entry: CautionEntry }[]
 ): {
   cautionHerbs: CautionHerb[];
   safeHerbIds: string[];
@@ -341,6 +604,15 @@ export function calculateCautionScore(
         explanation: interaction.mechanism,
         clinical_action: interaction.clinical_action,
       });
+    }
+
+    // merge extra cautions (from age restrictions, herb-herb interactions, duration checks)
+    const extras = (extraCautions ?? []).filter((ec) => ec.herbId === herb.id);
+    for (const extra of extras) {
+      score += extra.entry.severity
+        ? INTERACTION_SEVERITY_SCORE[extra.entry.severity]
+        : 5;
+      cautions.push(extra.entry);
     }
 
     if (cautions.length > 0) {
@@ -582,10 +854,10 @@ export async function runAssessment(
     },
   });
 
-  // Query database (parallel)
+  // Query database (parallel) — includes new safety tables
   const db = getServiceClient();
 
-  const [herbsRes, condRisksRes, medInteractionsRes, evidenceRes] =
+  const [herbsRes, condRisksRes, medInteractionsRes, evidenceRes, herbHerbRes, ageRestrictionsRes] =
     await Promise.all([
       db.from("herbs").select("*"),
       conditionIds.length > 0
@@ -604,6 +876,12 @@ export async function runAssessment(
             error: null,
           }),
       db.from("evidence_claims").select("*"),
+      // herb-herb interactions — only needed if user has current herbs
+      intake.current_herbs.length > 0
+        ? db.from("herb_herb_interactions").select("*")
+        : Promise.resolve({ data: [] as HerbHerbInteractionRow[], error: null }),
+      // age restrictions — always query
+      db.from("herb_age_restrictions").select("*").eq("age_group", intake.age_group),
     ]);
 
   if (herbsRes.error)
@@ -618,12 +896,18 @@ export async function runAssessment(
     );
   if (evidenceRes.error)
     throw new Error(`DB error (evidence): ${evidenceRes.error.message}`);
+  if (herbHerbRes.error)
+    throw new Error(`DB error (herb_herb_interactions): ${herbHerbRes.error.message}`);
+  if (ageRestrictionsRes.error)
+    throw new Error(`DB error (herb_age_restrictions): ${ageRestrictionsRes.error.message}`);
 
   const herbs = herbsRes.data as HerbRow[];
   const condRisks = (condRisksRes.data ?? []) as HerbConditionRiskRow[];
   const medInteractions = (medInteractionsRes.data ??
     []) as HerbMedicationInteractionRow[];
   const evidence = (evidenceRes.data ?? []) as EvidenceClaimRow[];
+  const herbHerbInteractions = (herbHerbRes.data ?? []) as HerbHerbInteractionRow[];
+  const ageRestrictions = (ageRestrictionsRes.data ?? []) as HerbAgeRestrictionRow[];
 
   allAudit.push({
     event_type: "DB_QUERY_COMPLETE",
@@ -632,10 +916,12 @@ export async function runAssessment(
       condition_risks_count: condRisks.length,
       medication_interactions_count: medInteractions.length,
       evidence_claims_count: evidence.length,
+      herb_herb_interactions_count: herbHerbInteractions.length,
+      age_restrictions_count: ageRestrictions.length,
     },
   });
 
-  // Step 3: Filter blocked herbs
+  // Step 3: Filter blocked herbs (conditions + critical medication interactions)
   const blockResult = filterBlockedHerbs(
     herbs,
     condRisks,
@@ -645,13 +931,51 @@ export async function runAssessment(
   );
   allAudit.push(...blockResult.auditEntries);
 
-  // Step 4: Calculate caution scores on remaining herbs
-  const cautionResult = calculateCautionScore(
+  // Step 3B: Age-based restrictions
+  const ageResult = applyAgeRestrictions(
     blockResult.remaining,
+    ageRestrictions,
+    intake.age_group
+  );
+  allAudit.push(...ageResult.auditEntries);
+
+  // Step 3C: Herb-herb interaction check (user's current herbs vs remaining)
+  const herbHerbResult = checkHerbHerbInteractions(
+    ageResult.remaining,
+    herbHerbInteractions,
+    intake.current_herbs
+  );
+  allAudit.push(...herbHerbResult.auditEntries);
+
+  // Step 3D: Duration restriction check
+  const durationResult = checkDurationRestrictions(
+    herbHerbResult.remaining,
+    intake.symptom_duration
+  );
+  allAudit.push(...durationResult.auditEntries);
+
+  // merge all blocked herbs from all steps
+  const allBlocked = [
+    ...blockResult.blocked,
+    ...ageResult.blocked,
+    ...herbHerbResult.blocked,
+  ];
+
+  // merge all extra caution entries from age/herb-herb/duration checks
+  const allExtraCautions = [
+    ...ageResult.cautions,
+    ...herbHerbResult.cautions,
+    ...durationResult.cautions,
+  ];
+
+  // Step 4: Calculate caution scores on remaining herbs (with extra cautions merged in)
+  const cautionResult = calculateCautionScore(
+    herbHerbResult.remaining,
     condRisks,
     medInteractions,
     conditionIds,
-    medicationIds
+    medicationIds,
+    allExtraCautions
   );
   allAudit.push(...cautionResult.auditEntries);
 
@@ -668,7 +992,7 @@ export async function runAssessment(
   // Step 6: Generate output
   const result = generateOutput(
     intake,
-    blockResult.blocked,
+    allBlocked,
     evidenceResult.rankedCautionHerbs,
     evidenceResult.safeHerbs,
     allAudit

@@ -153,6 +153,26 @@ export interface HerbMedicationInteractionRow {
   clinical_action: string;
 }
 
+export interface HerbHerbInteractionRow {
+  id: string;
+  herb_id_1: string;
+  herb_id_2: string;
+  risk_code: "yellow" | "red";
+  interaction_category: string;
+  severity: InteractionSeverity;
+  mechanism: string;
+  clinical_action: string;
+  evidence_basis: "clinical" | "pharmacological" | "traditional" | "theoretical";
+}
+
+export interface HerbAgeRestrictionRow {
+  id: string;
+  herb_id: string;
+  age_group: AgeGroup;
+  restriction: "blocked" | "caution" | "dose_reduce";
+  explanation: string;
+}
+
 export interface EvidenceClaimRow {
   id: string;
   herb_id: string;

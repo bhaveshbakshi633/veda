@@ -250,7 +250,8 @@ export function CautionHerbCard({
                 className="bg-risk-amber-light/60 rounded-xl p-3.5 text-sm border border-amber-200/50"
               >
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                  {caution.type === "medication_interaction" &&
+                  {(caution.type === "medication_interaction" ||
+                    caution.type === "herb_herb_interaction") &&
                     caution.severity && (
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full font-semibold ${SEVERITY_COLORS[caution.severity]}`}
