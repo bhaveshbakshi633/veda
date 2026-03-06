@@ -222,6 +222,40 @@ const RED_FLAG_ITEMS = [
 ];
 
 // ============================================
+// STEP CONFIG for progress bar
+// ============================================
+
+const STEP_CONFIG = [
+  {
+    num: 1 as Step,
+    label: "About You",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    ),
+  },
+  {
+    num: 2 as Step,
+    label: "Health",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+      </svg>
+    ),
+  },
+  {
+    num: 3 as Step,
+    label: "Concern",
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+      </svg>
+    ),
+  },
+];
+
+// ============================================
 // FORM STATE
 // ============================================
 
@@ -375,47 +409,79 @@ export default function IntakePage() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Progress bar — 3 steps */}
-      <div className="flex gap-1.5 mb-6">
-        {([1, 2, 3] as Step[]).map((s) => (
-          <div key={s} className="flex-1 flex flex-col items-center gap-1">
-            <div
-              className={`h-1.5 w-full rounded-full transition-colors ${
-                s <= step ? "bg-ayurv-primary" : "bg-gray-200"
-              }`}
-            />
-            <span className={`text-[10px] ${s <= step ? "text-ayurv-primary font-medium" : "text-gray-400"}`}>
-              {s === 1 ? "About You" : s === 2 ? "Health" : "Concern"}
-            </span>
-          </div>
-        ))}
+      {/* ---- Premium Progress Bar ---- */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          {STEP_CONFIG.map((s, idx) => (
+            <div key={s.num} className="flex items-center flex-1">
+              {/* step circle */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                    s.num < step
+                      ? "bg-risk-green text-white shadow-sm"
+                      : s.num === step
+                        ? "bg-ayurv-primary text-white shadow-md shadow-ayurv-primary/25"
+                        : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {s.num < step ? (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    s.icon
+                  )}
+                </div>
+                <span className={`text-xs mt-1.5 font-medium transition-colors ${
+                  s.num <= step ? "text-ayurv-primary" : "text-gray-400"
+                }`}>
+                  {s.label}
+                </span>
+              </div>
+              {/* connector line */}
+              {idx < STEP_CONFIG.length - 1 && (
+                <div className="flex-1 mx-3 mb-5">
+                  <div className="h-0.5 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ease-out ${
+                        s.num < step ? "bg-risk-green w-full" : "bg-gray-200 w-0"
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        {/* ──────── STEP 1: About You ──────── */}
+      {/* ---- Form Card ---- */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+        {/* -------- STEP 1: About You -------- */}
         {step === 1 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-1">About You</h2>
-            <p className="text-sm text-gray-500 mb-5">Quick basics so we can check herb safety for you.</p>
+          <div className="animate-fade-in">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">About You</h2>
+            <p className="text-sm text-ayurv-muted mb-6">Quick basics so we can check herb safety for you.</p>
 
-            <div className="space-y-5">
+            <div className="space-y-6">
               {/* Age */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
                 <input
                   type="number"
                   min={1}
                   max={120}
                   value={form.age}
                   onChange={(e) => setForm((p) => ({ ...p, age: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent focus:border-transparent"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white"
                   placeholder="Your age"
                 />
               </div>
 
               {/* Sex */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Biological Sex</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Biological Sex</label>
                 <div className="flex gap-3">
                   {(["male", "female", "other"] as const).map((s) => (
                     <button
@@ -428,10 +494,10 @@ export default function IntakePage() {
                           pregnancy_status: s === "male" ? "not_applicable" : p.pregnancy_status === "not_applicable" ? "" : p.pregnancy_status,
                         }))
                       }
-                      className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                      className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                         form.sex === s
-                          ? "bg-ayurv-primary text-white border-ayurv-primary"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                          ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                       }`}
                     >
                       {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -442,14 +508,14 @@ export default function IntakePage() {
 
               {/* Pregnancy — only for non-male */}
               {form.sex !== "male" && form.sex !== "" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="animate-fade-in">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Pregnancy / Reproductive Status
                   </label>
                   <select
                     value={form.pregnancy_status}
                     onChange={(e) => setForm((p) => ({ ...p, pregnancy_status: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white"
                   >
                     <option value="">Select...</option>
                     <option value="not_pregnant">Not pregnant</option>
@@ -463,8 +529,8 @@ export default function IntakePage() {
               )}
 
               {/* Red flags — inline quick check */}
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-sm font-medium text-gray-700 mb-2">
+              <div className="border-t border-gray-100 pt-6">
+                <p className="text-sm font-medium text-gray-700 mb-3">
                   Are you experiencing any urgent symptoms right now?
                 </p>
                 <div className="flex gap-3 mb-3">
@@ -475,10 +541,10 @@ export default function IntakePage() {
                       has_red_flags: false,
                       red_flags: Object.fromEntries(RED_FLAG_ITEMS.map((q) => [q.key, false])),
                     }))}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_red_flags === false
-                        ? "bg-risk-green-light text-risk-green border-risk-green/30"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-risk-green-light text-risk-green border-risk-green/30 shadow-sm"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-risk-green/20 hover:bg-risk-green-light/50"
                     }`}
                   >
                     No, I'm fine
@@ -486,10 +552,10 @@ export default function IntakePage() {
                   <button
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, has_red_flags: true }))}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_red_flags === true
-                        ? "bg-risk-red-light text-risk-red border-risk-red/30"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-risk-red-light text-risk-red border-risk-red/30 shadow-sm"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-risk-red/20 hover:bg-risk-red-light/50"
                     }`}
                   >
                     Yes, I have some
@@ -497,9 +563,9 @@ export default function IntakePage() {
                 </div>
 
                 {form.has_red_flags === true && (
-                  <div className="space-y-2 bg-risk-red-light/50 rounded-lg p-3">
+                  <div className="space-y-2 bg-risk-red-light/50 rounded-xl p-4 animate-fade-in border border-risk-red/10">
                     {RED_FLAG_ITEMS.map((q) => (
-                      <label key={q.key} className="flex items-center gap-2 cursor-pointer">
+                      <label key={q.key} className="flex items-center gap-3 cursor-pointer py-1 hover:bg-white/50 rounded-lg px-2 -mx-2 transition-colors">
                         <input
                           type="checkbox"
                           checked={form.red_flags[q.key]}
@@ -521,28 +587,28 @@ export default function IntakePage() {
           </div>
         )}
 
-        {/* ──────── STEP 2: Health Profile ──────── */}
+        {/* -------- STEP 2: Health Profile -------- */}
         {step === 2 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-1">Your Health Profile</h2>
-            <p className="text-sm text-gray-500 mb-5">
+          <div className="animate-fade-in">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Your Health Profile</h2>
+            <p className="text-sm text-ayurv-muted mb-6">
               This helps us check which herbs are safe for you.
             </p>
 
             <div className="space-y-6">
               {/* Conditions */}
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">
+                <p className="text-sm font-medium text-gray-700 mb-3">
                   Do you have any health conditions?
                 </p>
                 <div className="flex gap-3 mb-3">
                   <button
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, has_conditions: false, chronic_conditions: [] }))}
-                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_conditions === false
-                        ? "bg-ayurv-primary text-white border-ayurv-primary"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                     }`}
                   >
                     No conditions
@@ -550,10 +616,10 @@ export default function IntakePage() {
                   <button
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, has_conditions: true }))}
-                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_conditions === true
-                        ? "bg-ayurv-primary text-white border-ayurv-primary"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                     }`}
                   >
                     Yes, I have some
@@ -561,73 +627,85 @@ export default function IntakePage() {
                 </div>
 
                 {form.has_conditions === true && (
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {CONDITION_GROUPS.map((group) => (
-                      <div key={group.label} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((p) => ({
-                              ...p,
-                              expanded_condition_group:
-                                p.expanded_condition_group === group.label ? null : group.label,
-                            }))
-                          }
-                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          <span className="flex items-center gap-2">
-                            {group.label}
-                            {group.items.some((i) => form.chronic_conditions.includes(i.value)) && (
-                              <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
-                            )}
-                          </span>
-                          <span className="text-gray-400 text-xs">
-                            {form.expanded_condition_group === group.label ? "▲" : "▼"}
-                          </span>
-                        </button>
-                        {form.expanded_condition_group === group.label && (
-                          <div className="px-3 pb-2.5 flex flex-wrap gap-1.5">
-                            {group.items.map((item) => (
-                              <button
-                                key={item.value}
-                                type="button"
-                                onClick={() => toggleCondition(item.value)}
-                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                  form.chronic_conditions.includes(item.value)
-                                    ? "bg-ayurv-primary text-white border-ayurv-primary"
-                                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                }`}
-                              >
-                                {item.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1 animate-fade-in">
+                    {CONDITION_GROUPS.map((group) => {
+                      const isExpanded = form.expanded_condition_group === group.label;
+                      const hasSelected = group.items.some((i) => form.chronic_conditions.includes(i.value));
+                      return (
+                        <div key={group.label} className={`border rounded-xl overflow-hidden transition-all duration-200 ${
+                          hasSelected ? "border-ayurv-accent/30 bg-ayurv-primary/[0.02]" : "border-gray-200"
+                        }`}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((p) => ({
+                                ...p,
+                                expanded_condition_group:
+                                  p.expanded_condition_group === group.label ? null : group.label,
+                              }))
+                            }
+                            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50/80 transition-colors"
+                          >
+                            <span className="flex items-center gap-2.5">
+                              {group.label}
+                              {hasSelected && (
+                                <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
+                              )}
+                            </span>
+                            <svg
+                              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-4 pb-3 flex flex-wrap gap-2 animate-fade-in">
+                              {group.items.map((item) => (
+                                <button
+                                  key={item.value}
+                                  type="button"
+                                  onClick={() => toggleCondition(item.value)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
+                                    form.chronic_conditions.includes(item.value)
+                                      ? "bg-ayurv-primary text-white border-ayurv-primary shadow-sm"
+                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-ayurv-primary/5 hover:border-ayurv-accent/30"
+                                  }`}
+                                >
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
                 {form.has_conditions === true && form.chronic_conditions.length > 0 && (
-                  <div className="mt-2 text-xs text-ayurv-primary">
-                    Selected: {form.chronic_conditions.length} condition{form.chronic_conditions.length > 1 ? "s" : ""}
+                  <div className="mt-3 flex items-center gap-2 text-xs text-ayurv-primary font-medium bg-ayurv-primary/5 rounded-lg px-3 py-2">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    {form.chronic_conditions.length} condition{form.chronic_conditions.length > 1 ? "s" : ""} selected
                   </div>
                 )}
               </div>
 
               {/* Medications */}
-              <div className="border-t border-gray-100 pt-5">
-                <p className="text-sm font-medium text-gray-700 mb-2">
+              <div className="border-t border-gray-100 pt-6">
+                <p className="text-sm font-medium text-gray-700 mb-3">
                   Are you taking any medications?
                 </p>
                 <div className="flex gap-3 mb-3">
                   <button
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, has_medications: false, medications: [] }))}
-                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_medications === false
-                        ? "bg-ayurv-primary text-white border-ayurv-primary"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                     }`}
                   >
                     No medications
@@ -635,10 +713,10 @@ export default function IntakePage() {
                   <button
                     type="button"
                     onClick={() => setForm((p) => ({ ...p, has_medications: true }))}
-                    className={`flex-1 py-2.5 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                    className={`flex-1 py-3 px-3 rounded-xl border-2 text-sm font-semibold transition-all duration-200 ${
                       form.has_medications === true
-                        ? "bg-ayurv-primary text-white border-ayurv-primary"
-                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                        ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                     }`}
                   >
                     Yes, I take some
@@ -646,70 +724,82 @@ export default function IntakePage() {
                 </div>
 
                 {form.has_medications === true && (
-                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                    {MEDICATION_GROUPS.map((group) => (
-                      <div key={group.label} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setForm((p) => ({
-                              ...p,
-                              expanded_med_group:
-                                p.expanded_med_group === group.label ? null : group.label,
-                            }))
-                          }
-                          className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                        >
-                          <span className="flex items-center gap-2">
-                            {group.label}
-                            {group.items.some((i) => form.medications.includes(i.value)) && (
-                              <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
-                            )}
-                          </span>
-                          <span className="text-gray-400 text-xs">
-                            {form.expanded_med_group === group.label ? "▲" : "▼"}
-                          </span>
-                        </button>
-                        {form.expanded_med_group === group.label && (
-                          <div className="px-3 pb-2.5 flex flex-wrap gap-1.5">
-                            {group.items.map((item) => (
-                              <button
-                                key={item.value}
-                                type="button"
-                                onClick={() => toggleMedication(item.value)}
-                                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                  form.medications.includes(item.value)
-                                    ? "bg-ayurv-primary text-white border-ayurv-primary"
-                                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-                                }`}
-                              >
-                                {item.label}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1 animate-fade-in">
+                    {MEDICATION_GROUPS.map((group) => {
+                      const isExpanded = form.expanded_med_group === group.label;
+                      const hasSelected = group.items.some((i) => form.medications.includes(i.value));
+                      return (
+                        <div key={group.label} className={`border rounded-xl overflow-hidden transition-all duration-200 ${
+                          hasSelected ? "border-ayurv-accent/30 bg-ayurv-primary/[0.02]" : "border-gray-200"
+                        }`}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setForm((p) => ({
+                                ...p,
+                                expanded_med_group:
+                                  p.expanded_med_group === group.label ? null : group.label,
+                              }))
+                            }
+                            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50/80 transition-colors"
+                          >
+                            <span className="flex items-center gap-2.5">
+                              {group.label}
+                              {hasSelected && (
+                                <span className="w-2 h-2 bg-ayurv-primary rounded-full" />
+                              )}
+                            </span>
+                            <svg
+                              className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </button>
+                          {isExpanded && (
+                            <div className="px-4 pb-3 flex flex-wrap gap-2 animate-fade-in">
+                              {group.items.map((item) => (
+                                <button
+                                  key={item.value}
+                                  type="button"
+                                  onClick={() => toggleMedication(item.value)}
+                                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
+                                    form.medications.includes(item.value)
+                                      ? "bg-ayurv-primary text-white border-ayurv-primary shadow-sm"
+                                      : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-ayurv-primary/5 hover:border-ayurv-accent/30"
+                                  }`}
+                                >
+                                  {item.label}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
                 {form.has_medications === true && form.medications.length > 0 && (
-                  <div className="mt-2 text-xs text-ayurv-primary">
-                    Selected: {form.medications.length} medication{form.medications.length > 1 ? "s" : ""}
+                  <div className="mt-3 flex items-center gap-2 text-xs text-ayurv-primary font-medium bg-ayurv-primary/5 rounded-lg px-3 py-2">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    {form.medications.length} medication{form.medications.length > 1 ? "s" : ""} selected
                   </div>
                 )}
               </div>
 
               {/* Current herbs */}
-              <div className="border-t border-gray-100 pt-5">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="border-t border-gray-100 pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Any Ayurvedic herbs you already take? <span className="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <input
                   type="text"
                   value={form.current_herbs}
                   onChange={(e) => setForm((p) => ({ ...p, current_herbs: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent focus:border-transparent"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white"
                   placeholder="e.g. Ashwagandha, Triphala"
                 />
               </div>
@@ -717,47 +807,47 @@ export default function IntakePage() {
           </div>
         )}
 
-        {/* ──────── STEP 3: Concern & Goal ──────── */}
+        {/* -------- STEP 3: Concern & Goal -------- */}
         {step === 3 && (
-          <div>
-            <h2 className="text-lg font-semibold mb-1">What Brings You Here?</h2>
-            <p className="text-sm text-gray-500 mb-5">
+          <div className="animate-fade-in">
+            <h2 className="text-xl font-bold text-gray-900 mb-1">What Brings You Here?</h2>
+            <p className="text-sm text-ayurv-muted mb-6">
               Pick your main concern and we will find the right herbs for you.
             </p>
 
-            <div className="space-y-5">
+            <div className="space-y-6">
               {/* Concern grid */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Main concern
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {CONCERN_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setForm((p) => ({ ...p, symptom_primary: opt.value }))}
-                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors text-left ${
+                      className={`flex flex-col items-center gap-1.5 px-3 py-3.5 rounded-xl border-2 text-sm transition-all duration-200 ${
                         form.symptom_primary === opt.value
-                          ? "bg-ayurv-primary text-white border-ayurv-primary"
-                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15 scale-[1.02]"
+                          : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5 hover:shadow-sm"
                       }`}
                     >
-                      <span className="text-base">{opt.icon}</span>
-                      <span className="font-medium text-xs">{opt.label}</span>
+                      <span className="text-xl">{opt.icon}</span>
+                      <span className="font-medium text-xs leading-tight text-center">{opt.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Duration & Severity */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">How long?</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">How long?</label>
                   <select
                     value={form.symptom_duration}
                     onChange={(e) => setForm((p) => ({ ...p, symptom_duration: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-ayurv-accent"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white"
                   >
                     <option value="">Select...</option>
                     <option value="less_than_1_week">Less than a week</option>
@@ -770,21 +860,21 @@ export default function IntakePage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">How bad?</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">How bad?</label>
                   <div className="flex gap-2">
                     {(["mild", "moderate", "severe"] as const).map((sev) => (
                       <button
                         key={sev}
                         type="button"
                         onClick={() => setForm((p) => ({ ...p, symptom_severity: sev }))}
-                        className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${
+                        className={`flex-1 py-3 rounded-xl border-2 text-xs font-semibold transition-all duration-200 ${
                           form.symptom_severity === sev
                             ? sev === "severe"
-                              ? "bg-risk-red text-white border-risk-red"
+                              ? "bg-risk-red text-white border-risk-red shadow-md shadow-risk-red/15"
                               : sev === "moderate"
-                                ? "bg-risk-amber text-white border-risk-amber"
-                                : "bg-risk-green text-white border-risk-green"
-                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                                ? "bg-risk-amber text-white border-risk-amber shadow-md shadow-risk-amber/15"
+                                : "bg-risk-green text-white border-risk-green shadow-md shadow-risk-green/15"
+                            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                         }`}
                       >
                         {sev.charAt(0).toUpperCase() + sev.slice(1)}
@@ -796,22 +886,22 @@ export default function IntakePage() {
 
               {/* Goal */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
                   What would you like to do?
                 </label>
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {GOAL_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
                       onClick={() => setForm((p) => ({ ...p, user_goal: opt.value }))}
-                      className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-colors ${
+                      className={`w-full text-left px-5 py-4 rounded-xl border-2 text-sm transition-all duration-200 ${
                         form.user_goal === opt.value
-                          ? "bg-ayurv-primary text-white border-ayurv-primary"
-                          : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
+                          ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
                       }`}
                     >
-                      <span className="font-medium">{opt.label}</span>
+                      <span className="font-semibold">{opt.label}</span>
                       <span className={`block text-xs mt-0.5 ${
                         form.user_goal === opt.value ? "text-white/80" : "text-gray-400"
                       }`}>
@@ -823,7 +913,10 @@ export default function IntakePage() {
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg">
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-4 rounded-xl flex items-start gap-2.5">
+                  <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  </svg>
                   {error}
                 </div>
               )}
@@ -831,14 +924,17 @@ export default function IntakePage() {
           </div>
         )}
 
-        {/* Navigation */}
-        <div className="flex justify-between mt-6">
+        {/* ---- Navigation ---- */}
+        <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
           <button
             type="button"
             onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
             disabled={step === 1}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 disabled:invisible"
+            className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-gray-500 hover:text-gray-900 disabled:invisible transition-colors rounded-lg hover:bg-gray-50"
           >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
             Back
           </button>
 
@@ -847,22 +943,39 @@ export default function IntakePage() {
               type="button"
               onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
               disabled={!canAdvance()}
-              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 canAdvance()
-                  ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-md shadow-ayurv-primary/15 hover:shadow-lg hover:-translate-y-0.5"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
               }`}
             >
               Continue
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
             </button>
           ) : (
             <button
               type="button"
               onClick={handleSubmit}
               disabled={submitting || !canAdvance()}
-              className="px-6 py-2.5 rounded-lg text-sm font-medium bg-ayurv-primary text-white hover:bg-ayurv-secondary disabled:opacity-50"
+              className={`px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 ${
+                canAdvance() && !submitting
+                  ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-lg shadow-ayurv-primary/25 hover:shadow-xl hover:-translate-y-0.5"
+                  : "bg-gray-100 text-gray-400 cursor-not-allowed"
+              }`}
             >
-              {submitting ? "Assessing..." : "Get My Results"}
+              {submitting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Assessing...
+                </span>
+              ) : (
+                "Get My Results"
+              )}
             </button>
           )}
         </div>

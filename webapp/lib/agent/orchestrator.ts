@@ -44,19 +44,46 @@ const BANNED_PATTERNS: { pattern: RegExp; replacement: string }[] = [
 // ============================================
 
 const KNOWN_HERB_IDS = [
-  "herb_ashwagandha", "herb_triphala", "herb_tulsi",
-  "herb_brahmi", "herb_shatavari", "herb_guduchi",
-  "herb_haridra", "herb_arjuna", "herb_amalaki",
-  "herb_yashtimadhu",
+  "herb_ashwagandha", "herb_triphala", "herb_tulsi", "herb_brahmi", "herb_shatavari",
+  "herb_guduchi", "herb_haridra", "herb_arjuna", "herb_amalaki", "herb_yashtimadhu",
+  "herb_neem", "herb_guggulu", "herb_moringa", "herb_gokshura", "herb_punarnava",
+  "herb_shilajit", "herb_kutki", "herb_bhringaraj", "herb_shankhapushpi", "herb_vidanga",
+  "herb_vacha", "herb_pippali", "herb_maricha", "herb_shunthi", "herb_dalchini",
+  "herb_elaichi", "herb_lavanga", "herb_methi", "herb_kalmegh", "herb_manjistha",
+  "herb_chitrak", "herb_bala", "herb_jatamansi", "herb_kumari", "herb_tagar",
+  "herb_musta", "herb_haritaki", "herb_bibhitaki", "herb_sariva", "herb_chirata",
+  "herb_ajwain", "herb_jeera", "herb_kalonji", "herb_isabgol", "herb_senna",
+  "herb_safed_musli", "herb_kapikacchu", "herb_rasna", "herb_lodhra", "herb_nagkesar",
 ];
 
 const HERB_NAME_PATTERNS = [
+  // Original 10
   /\bashwagandha\b/i, /\btriphala\b/i, /\btulsi\b/i, /\bholy basil\b/i,
   /\bbrahmi\b/i, /\bbacopa\b/i, /\bshatavari\b/i,
   /\bguduchi\b/i, /\bgiloy\b/i, /\btinospora\b/i,
   /\bharidra\b/i, /\bhaldi\b/i, /\bturmeric\b/i, /\bcurcumin\b/i,
   /\barjuna\b/i, /\bamalaki\b/i, /\bamla\b/i,
   /\byashtimadhu\b/i, /\bmulethi\b/i, /\blicorice\b/i, /\bliquorice\b/i,
+  // 40 new herbs
+  /\bneem\b/i, /\bnimba\b/i, /\bguggul(?:u)?\b/i, /\bmoringa\b/i, /\bdrumstick\b/i,
+  /\bgokshura\b/i, /\bgokhru\b/i, /\btribulus\b/i, /\bpunarnava\b/i, /\bshilajit\b/i,
+  /\bkutki\b/i, /\bkatuki\b/i, /\bbhri?ngaraj\b/i, /\bshankh(?:a)?pushpi\b/i,
+  /\bvidanga\b/i, /\bvacha\b/i, /\bpippali\b/i, /\blong pepper\b/i,
+  /\bmaricha\b/i, /\bblack pepper\b/i, /\bkali mirch\b/i,
+  /\bshunthi\b/i, /\bginger\b/i, /\badrak\b/i, /\bsonth\b/i,
+  /\bdalchini\b/i, /\bcinnamon\b/i, /\belaichi\b/i, /\bcardamom\b/i,
+  /\blavanga?\b/i, /\bclove\b/i, /\blaung\b/i,
+  /\bmethi\b/i, /\bfenugreek\b/i, /\bkalmegh\b/i, /\bandrographis\b/i,
+  /\bmanjistha\b/i, /\bchitrak\b/i, /\bbala\b/i,
+  /\bjatamansi\b/i, /\bspikenard\b/i, /\bkumari\b/i, /\baloe vera\b/i,
+  /\btagar\b/i, /\bvalerian\b/i, /\bmusta\b/i, /\bnagarmotha\b/i,
+  /\bharitaki\b/i, /\bharad\b/i, /\bbibhitaki\b/i, /\bbaheda\b/i,
+  /\bsariva\b/i, /\banantamool\b/i, /\bchirata\b/i, /\bchirayita\b/i,
+  /\bajwain\b/i, /\bcarom\b/i, /\bjeera\b/i, /\bcumin\b/i,
+  /\bkalonji\b/i, /\bnigella\b/i, /\bblack seed\b/i,
+  /\bisabgol\b/i, /\bpsyllium\b/i, /\bsenna\b/i,
+  /\bsafed musli\b/i, /\bkapikacchu\b/i, /\bmucuna\b/i,
+  /\brasna\b/i, /\blodhra\b/i, /\bnagkesar\b/i,
 ];
 
 // Dosage-related patterns
@@ -262,6 +289,46 @@ function getHerbNames(herbId: string): string[] {
     herb_arjuna: ["arjuna"],
     herb_amalaki: ["amalaki", "amla"],
     herb_yashtimadhu: ["yashtimadhu", "mulethi", "licorice", "liquorice"],
+    herb_neem: ["neem", "nimba"],
+    herb_guggulu: ["guggulu", "guggul"],
+    herb_moringa: ["moringa", "drumstick", "sahjan"],
+    herb_gokshura: ["gokshura", "gokhru", "tribulus"],
+    herb_punarnava: ["punarnava"],
+    herb_shilajit: ["shilajit"],
+    herb_kutki: ["kutki", "katuki"],
+    herb_bhringaraj: ["bhringaraj", "bhringraj"],
+    herb_shankhapushpi: ["shankhapushpi", "shankhpushpi"],
+    herb_vidanga: ["vidanga"],
+    herb_vacha: ["vacha", "sweet flag"],
+    herb_pippali: ["pippali", "long pepper"],
+    herb_maricha: ["maricha", "black pepper", "kali mirch"],
+    herb_shunthi: ["shunthi", "ginger", "adrak", "sonth"],
+    herb_dalchini: ["dalchini", "cinnamon"],
+    herb_elaichi: ["elaichi", "cardamom"],
+    herb_lavanga: ["lavanga", "clove", "laung"],
+    herb_methi: ["methi", "fenugreek"],
+    herb_kalmegh: ["kalmegh", "andrographis"],
+    herb_manjistha: ["manjistha"],
+    herb_chitrak: ["chitrak"],
+    herb_bala: ["bala"],
+    herb_jatamansi: ["jatamansi", "spikenard"],
+    herb_kumari: ["kumari", "aloe vera", "aloe"],
+    herb_tagar: ["tagar", "valerian"],
+    herb_musta: ["musta", "nagarmotha"],
+    herb_haritaki: ["haritaki", "harad"],
+    herb_bibhitaki: ["bibhitaki", "baheda"],
+    herb_sariva: ["sariva", "anantamool"],
+    herb_chirata: ["chirata", "chirayita"],
+    herb_ajwain: ["ajwain", "carom"],
+    herb_jeera: ["jeera", "cumin"],
+    herb_kalonji: ["kalonji", "nigella", "black seed"],
+    herb_isabgol: ["isabgol", "psyllium"],
+    herb_senna: ["senna"],
+    herb_safed_musli: ["safed musli"],
+    herb_kapikacchu: ["kapikacchu", "mucuna", "velvet bean"],
+    herb_rasna: ["rasna"],
+    herb_lodhra: ["lodhra"],
+    herb_nagkesar: ["nagkesar"],
   };
   return map[herbId] || [];
 }
@@ -271,11 +338,9 @@ function getHerbNames(herbId: string): string[] {
 // ============================================
 
 const UNKNOWN_HERB_PATTERNS = [
-  /\bshankhpushpi\b/i, /\bneem\b/i, /\bmoringa\b/i, /\bmanjistha\b/i,
-  /\bguggulu?\b/i, /\bkutki\b/i, /\bpippali\b/i, /\bvidari\b/i,
-  /\bpunarnava\b/i, /\bbhringraj\b/i, /\bkalmegh\b/i, /\bchitrak\b/i,
-  /\bgokshura\b/i, /\bshilajit\b/i, /\bvasaka\b/i, /\bharitaki\b/i,
-  /\bbibhitaki\b/i, /\bsafed musli\b/i, /\bkaunch\b/i,
+  /\bvasaka\b/i, /\bvidari\b/i, /\bkaunch\b/i, /\bshatpushpa\b/i,
+  /\bpathya\b/i, /\bdevdaru\b/i, /\bpriyangu\b/i, /\bkhadira\b/i,
+  /\bgambhari\b/i, /\bbilva\b/i, /\bshyonaka\b/i,
 ];
 
 /**
@@ -295,7 +360,7 @@ export function scanForUnknownHerb(message: string): {
   return { detected: false, herbName: null };
 }
 
-export const UNKNOWN_HERB_RESPONSE = `I don't have verified safety and evidence data for that herb in my database. I can only provide safety-checked information for the 10 herbs I have clinical data for. Would you like to explore one of those?`;
+export const UNKNOWN_HERB_RESPONSE = `I don't have verified safety and evidence data for that herb in my database yet. I can provide safety-checked information for the 50 herbs I have clinical data for. Would you like to explore one of those?`;
 
 // ============================================
 // PRE-BUILT ESCALATION RESPONSE

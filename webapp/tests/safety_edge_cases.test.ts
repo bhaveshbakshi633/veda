@@ -225,7 +225,7 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
       ...(result.caution_herbs || []),
       ...(result.safe_herbs || []),
     ];
-    expect(allHerbs.length).toBe(10); // All 10 herbs should be categorized
+    expect(allHerbs.length).toBe(50); // All 50 herbs should be categorized
   });
 
   it("SEC-015: Autoimmune conditions map correctly", async () => {
@@ -430,12 +430,12 @@ describe("CAUTION SCORING", () => {
     }
   });
 
-  it("SEC-034: All 10 herbs accounted for in output", async () => {
+  it("SEC-034: All 50 herbs accounted for in output", async () => {
     const result = await assess(makeProfile());
     const total = (result.blocked_herbs?.length || 0) +
                   (result.caution_herbs?.length || 0) +
                   (result.safe_herbs?.length || 0);
-    expect(total).toBe(10);
+    expect(total).toBe(50);
   });
 
   it("SEC-035: Mild symptom + no conditions = no referral", async () => {

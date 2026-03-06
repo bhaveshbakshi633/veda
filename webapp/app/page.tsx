@@ -20,6 +20,39 @@ const DISCLAIMER_CHECKS = [
   },
 ] as const;
 
+const HOW_IT_WORKS = [
+  {
+    step: "01",
+    title: "Tell us about you",
+    desc: "Age, conditions, medications — a quick health snapshot.",
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+      </svg>
+    ),
+  },
+  {
+    step: "02",
+    title: "We check safety",
+    desc: "Cross-reference herbs against your profile and clinical evidence.",
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+      </svg>
+    ),
+  },
+  {
+    step: "03",
+    title: "Get your report",
+    desc: "Personalised safety ratings, interactions, and dosage guidance.",
+    icon: (
+      <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+      </svg>
+    ),
+  },
+];
+
 export default function LandingPage() {
   const router = useRouter();
   const [checks, setChecks] = useState<Record<string, boolean>>({
@@ -45,63 +78,152 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <section className="text-center mb-10">
-        <h1 className="text-3xl font-bold text-ayurv-primary mb-3">
-          Ayurv — Herb Safety Intelligence
+    <div className="max-w-3xl mx-auto">
+      {/* ---- Hero Section ---- */}
+      <section className="text-center mb-12 animate-fade-in">
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-ayurv-primary/5 border border-ayurv-primary/10 rounded-full text-xs font-medium text-ayurv-primary mb-6">
+          <span className="w-1.5 h-1.5 bg-risk-green rounded-full animate-pulse" />
+          Evidence-based herb safety for India
+        </div>
+
+        <h1 className="text-4xl sm:text-5xl font-bold text-ayurv-primary mb-4 tracking-tight leading-tight">
+          Is that herb
+          <span className="bg-gradient-to-r from-ayurv-primary to-ayurv-accent bg-clip-text text-transparent"> safe for you?</span>
         </h1>
-        <p className="text-gray-600 text-lg">
-          Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.
+
+        <p className="text-gray-600 text-lg sm:text-xl max-w-xl mx-auto leading-relaxed">
+          Check Ayurvedic herbs against your conditions, medications, and clinical evidence — in under 2 minutes.
         </p>
-        <p className="text-sm text-gray-400 mt-2">
-          10 herbs &middot; Drug interaction checks &middot; Evidence-graded claims &middot; Built for Indian healthcare
-        </p>
+
+        {/* Trust signals */}
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6 text-sm text-ayurv-muted">
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            50 herbs verified
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            Drug interaction database
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+            Evidence-graded claims
+          </span>
+        </div>
       </section>
 
-      <section className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Before You Begin</h2>
+      {/* ---- How it Works ---- */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
+        {HOW_IT_WORKS.map((item) => (
+          <div
+            key={item.step}
+            className="relative bg-white border border-gray-100 rounded-xl p-5 text-center card-hover shadow-sm"
+          >
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-ayurv-primary/5 text-ayurv-primary mb-3">
+              {item.icon}
+            </div>
+            <p className="text-xs font-semibold text-ayurv-accent uppercase tracking-wider mb-1">
+              Step {item.step}
+            </p>
+            <h3 className="font-semibold text-gray-900 mb-1">{item.title}</h3>
+            <p className="text-sm text-gray-500 leading-relaxed">{item.desc}</p>
+          </div>
+        ))}
+      </section>
 
-        <div className="bg-amber-50 border-l-4 border-risk-amber p-4 mb-6 text-sm text-gray-700">
-          <p className="font-medium text-risk-amber mb-1">Important Disclaimer</p>
-          <p>
-            Ayurv checks Ayurvedic herbs against your health profile using published clinical
-            evidence and known drug interactions. It does{" "}
-            <strong>NOT</strong> diagnose, prescribe, or replace your doctor. Herbal products can
-            interact with prescription medications — this tool helps you check.
-          </p>
+      {/* ---- Disclaimer & Consent ---- */}
+      <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden animate-fade-in">
+        {/* card header — gradient stripe */}
+        <div className="bg-gradient-to-r from-ayurv-primary to-ayurv-secondary px-6 py-4">
+          <h2 className="text-base font-semibold text-white">Before You Begin</h2>
+          <p className="text-sm text-green-200/80 mt-0.5">Please review and accept the following conditions</p>
         </div>
 
-        <div className="space-y-4 mb-6">
-          {DISCLAIMER_CHECKS.map((check) => (
-            <label
-              key={check.id}
-              className="flex items-start gap-3 cursor-pointer group"
-            >
-              <input
-                type="checkbox"
-                checked={checks[check.id]}
-                onChange={() => toggleCheck(check.id)}
-                className="mt-1 h-4 w-4 rounded border-gray-300 text-ayurv-primary focus:ring-ayurv-accent"
-              />
-              <span className="text-sm text-gray-700 group-hover:text-gray-900">
-                {check.label}
-              </span>
-            </label>
-          ))}
-        </div>
+        <div className="p-6">
+          {/* disclaimer box */}
+          <div className="bg-amber-50/80 border border-risk-amber/20 rounded-xl p-4 mb-6">
+            <div className="flex gap-3">
+              <div className="shrink-0 mt-0.5">
+                <svg className="w-5 h-5 text-risk-amber" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-risk-amber text-sm mb-1">Important Disclaimer</p>
+                <p className="text-sm text-gray-700 leading-relaxed">
+                  Ayurv checks Ayurvedic herbs against your health profile using published clinical
+                  evidence and known drug interactions. It does{" "}
+                  <strong>NOT</strong> diagnose, prescribe, or replace your doctor. Herbal products can
+                  interact with prescription medications — this tool helps you check.
+                </p>
+              </div>
+            </div>
+          </div>
 
-        <button
-          onClick={proceed}
-          disabled={!allChecked}
-          aria-disabled={!allChecked}
-          className={`w-full py-3 px-4 rounded-lg font-medium text-sm transition-colors ${
-            allChecked
-              ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary cursor-pointer"
-              : "bg-gray-200 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          {allChecked ? "Start Assessment" : "Accept all conditions to proceed"}
-        </button>
+          {/* consent checkboxes */}
+          <div className="space-y-3 mb-6">
+            {DISCLAIMER_CHECKS.map((check, idx) => (
+              <label
+                key={check.id}
+                className={`flex items-start gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                  checks[check.id]
+                    ? "bg-risk-green-light border-risk-green/20 shadow-sm"
+                    : "bg-gray-50/50 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                }`}
+              >
+                <div className="relative mt-0.5 shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={checks[check.id]}
+                    onChange={() => toggleCheck(check.id)}
+                    className="peer sr-only"
+                  />
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
+                    checks[check.id]
+                      ? "bg-risk-green border-risk-green"
+                      : "border-gray-300 bg-white"
+                  }`}>
+                    {checks[check.id] && (
+                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <span className="text-xs font-medium text-ayurv-muted uppercase tracking-wider">
+                    {idx + 1} of {DISCLAIMER_CHECKS.length}
+                  </span>
+                  <p className={`text-sm mt-0.5 leading-relaxed transition-colors ${
+                    checks[check.id] ? "text-gray-900 font-medium" : "text-gray-600"
+                  }`}>
+                    {check.label}
+                  </p>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* CTA button */}
+          <button
+            onClick={proceed}
+            disabled={!allChecked}
+            aria-disabled={!allChecked}
+            className={`w-full py-3.5 px-4 rounded-xl font-semibold text-sm transition-all duration-300 ${
+              allChecked
+                ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-lg shadow-ayurv-primary/20 hover:shadow-xl hover:shadow-ayurv-primary/30 hover:-translate-y-0.5 cursor-pointer"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {allChecked ? "Start My Assessment" : "Accept all conditions to proceed"}
+          </button>
+
+          {allChecked && (
+            <p className="text-center text-xs text-ayurv-muted mt-3">
+              Takes about 2 minutes. Your data stays in your browser.
+            </p>
+          )}
+        </div>
       </section>
     </div>
   );

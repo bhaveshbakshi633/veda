@@ -1,9 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* sabse important — saare interactive elements pe smooth transitions */
+button, a, input, select, [role="button"] {
+  @apply transition-all duration-200 ease-out;
+}
+
+/* focus states jo brand ke saath match karein */
+input:focus, select:focus, textarea:focus {
+  @apply outline-none ring-2 ring-ayurv-accent/40 border-ayurv-accent;
+}
+
+/* card hover effect — subtle lift */
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+}
+.card-hover:hover {
+  @apply shadow-md -translate-y-0.5;
+}
+
+/* smooth fade-in for step transitions */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeInUp 0.35s ease-out forwards;
+}
+
+/* progress bar fill animation */
+@keyframes progressFill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.animate-progress {
+  animation: progressFill 0.5s ease-out forwards;
+  transform-origin: left;
 }
 
 @layer components {

@@ -7,16 +7,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient } from "@/lib/supabase";
 
 const VALID_HERB_IDS = [
-  "herb_ashwagandha",
-  "herb_brahmi",
-  "herb_shatavari",
-  "herb_triphala",
-  "herb_tulsi",
-  "herb_guduchi",
-  "herb_haridra",
-  "herb_arjuna",
-  "herb_amalaki",
-  "herb_yashtimadhu",
+  // Original 10
+  "herb_ashwagandha", "herb_brahmi", "herb_shatavari", "herb_triphala", "herb_tulsi",
+  "herb_guduchi", "herb_haridra", "herb_arjuna", "herb_amalaki", "herb_yashtimadhu",
+  // 40 new herbs
+  "herb_neem", "herb_guggulu", "herb_moringa", "herb_gokshura", "herb_punarnava",
+  "herb_shilajit", "herb_kutki", "herb_bhringaraj", "herb_shankhapushpi", "herb_vidanga",
+  "herb_vacha", "herb_pippali", "herb_maricha", "herb_shunthi", "herb_dalchini",
+  "herb_elaichi", "herb_lavanga", "herb_methi", "herb_kalmegh", "herb_manjistha",
+  "herb_chitrak", "herb_bala", "herb_jatamansi", "herb_kumari", "herb_tagar",
+  "herb_musta", "herb_haritaki", "herb_bibhitaki", "herb_sariva", "herb_chirata",
+  "herb_ajwain", "herb_jeera", "herb_kalonji", "herb_isabgol", "herb_senna",
+  "herb_safed_musli", "herb_kapikacchu", "herb_rasna", "herb_lodhra", "herb_nagkesar",
 ];
 
 export async function GET(request: NextRequest) {

@@ -86,15 +86,18 @@ function DosageInfo({
   prefix?: string;
 }) {
   return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
-      <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">
+    <div className="mt-4 pt-4 border-t border-black/5">
+      <p className="text-[11px] font-semibold text-gray-500 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+        </svg>
         {prefix || "Educational Dosage Information"}
       </p>
-      <p className="text-xs text-gray-400 italic mb-2">{dosage.disclaimer}</p>
-      <div className="space-y-1.5">
+      <p className="text-xs text-gray-400 italic mb-2.5">{dosage.disclaimer}</p>
+      <div className="space-y-2">
         {dosage.forms.map((form, i) => (
-          <div key={i} className="flex items-baseline gap-2 text-xs flex-wrap">
-            <span className="font-medium text-gray-700 min-w-0 shrink-0">
+          <div key={i} className="flex items-baseline gap-2 text-xs flex-wrap bg-white/60 rounded-lg px-3 py-2">
+            <span className="font-semibold text-gray-700 min-w-0 shrink-0">
               {form.form}:
             </span>
             <span className="text-gray-600">
@@ -118,29 +121,47 @@ function DosageInfo({
 
 export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
   return (
-    <div className="border-2 border-risk-red bg-risk-red-light rounded-lg p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <h3 className="font-semibold text-gray-900">
-          {herb.herb_name}
-          <span className="text-risk-red font-bold ml-1">— NOT SAFE</span>
-        </h3>
-        <span className="risk-badge-red shrink-0">AVOID</span>
+    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-red/20 overflow-hidden card-hover">
+      {/* left color bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-red rounded-l-2xl" />
+
+      <div className="pl-5 pr-5 py-5 sm:pl-6 sm:pr-6">
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <h3 className="text-base font-bold text-gray-900">
+            {herb.herb_name}
+          </h3>
+          <span className="risk-badge-red shrink-0 shadow-sm shadow-risk-red/20">AVOID</span>
+        </div>
+
+        {/* reason box */}
+        <div className="bg-risk-red-light rounded-xl p-3.5 mb-3">
+          <p className="text-sm text-gray-700 leading-relaxed">
+            <span className="font-semibold text-risk-red">Why: </span>
+            {herb.reason}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-full">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            Trigger:{" "}
+            {herb.trigger_type === "pregnancy"
+              ? "Pregnancy/Reproductive status"
+              : herb.trigger_type === "medication"
+                ? "Drug interaction"
+                : "Health condition"}
+          </span>
+        </div>
+
+        <p className="text-xs text-risk-red font-semibold mt-3 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          </svg>
+          Discuss alternatives with your doctor
+        </p>
       </div>
-      <p className="text-sm text-gray-700 leading-relaxed">
-        <span className="font-medium">Why: </span>
-        {herb.reason}
-      </p>
-      <p className="text-xs text-gray-500 mt-2">
-        Trigger:{" "}
-        {herb.trigger_type === "pregnancy"
-          ? "Pregnancy/Reproductive status"
-          : herb.trigger_type === "medication"
-            ? "Drug interaction"
-            : "Health condition"}
-      </p>
-      <p className="text-xs text-risk-red font-medium mt-2">
-        What to do: Discuss alternatives with your doctor.
-      </p>
     </div>
   );
 }
@@ -157,65 +178,72 @@ export function CautionHerbCard({
   onEvidenceClick?: (herbId: string, herbName: string) => void;
 }) {
   return (
-    <div className="border-2 border-risk-amber bg-risk-amber-light rounded-lg p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <h3 className="font-semibold text-gray-900">
-            {herb.herb_name}
-            <span className="text-risk-amber font-bold ml-1">
-              — USE WITH CARE
-            </span>
-          </h3>
-          <EvidenceBadge
-            grade={herb.evidence_grade}
-            onClick={
-              onEvidenceClick
-                ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
-                : undefined
-            }
-          />
-        </div>
-        <span className="risk-badge-yellow shrink-0">CAUTION</span>
-      </div>
+    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-amber/20 overflow-hidden card-hover">
+      {/* left color bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-amber rounded-l-2xl" />
 
-      <p className="text-xs text-risk-amber font-medium mb-2">
-        {herb.cautions.length} warning{herb.cautions.length > 1 ? "s" : ""} for
-        your profile:
-      </p>
-
-      <div className="space-y-2 mb-3">
-        {herb.cautions.map((caution, i) => (
-          <div
-            key={i}
-            className="bg-white/60 rounded p-2.5 text-sm border border-amber-200"
-          >
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              {caution.type === "medication_interaction" &&
-                caution.severity && (
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded font-medium ${SEVERITY_COLORS[caution.severity]}`}
-                  >
-                    {SEVERITY_LABELS[caution.severity]}
-                  </span>
-                )}
-              <span className="text-xs text-gray-500 capitalize">
-                {caution.type.replace(/_/g, " ")}
-              </span>
-            </div>
-            <p className="text-gray-700 text-sm">{caution.explanation}</p>
-            {caution.clinical_action && (
-              <p className="text-xs text-risk-amber font-medium mt-1">
-                Action: {caution.clinical_action}
-              </p>
-            )}
+      <div className="pl-5 pr-5 py-5 sm:pl-6 sm:pr-6">
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h3 className="text-base font-bold text-gray-900">
+              {herb.herb_name}
+            </h3>
+            <EvidenceBadge
+              grade={herb.evidence_grade}
+              onClick={
+                onEvidenceClick
+                  ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
+                  : undefined
+              }
+            />
           </div>
-        ))}
-      </div>
+          <span className="risk-badge-yellow shrink-0 shadow-sm shadow-risk-amber/20">CAUTION</span>
+        </div>
 
-      <DosageInfo
-        dosage={herb.dosage}
-        prefix="Dosage (discuss with doctor first)"
-      />
+        <p className="text-xs text-risk-amber font-semibold mb-3 flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          {herb.cautions.length} warning{herb.cautions.length > 1 ? "s" : ""} for your profile
+        </p>
+
+        <div className="space-y-2.5 mb-3">
+          {herb.cautions.map((caution, i) => (
+            <div
+              key={i}
+              className="bg-risk-amber-light/60 rounded-xl p-3.5 text-sm border border-amber-200/50"
+            >
+              <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                {caution.type === "medication_interaction" &&
+                  caution.severity && (
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full font-semibold ${SEVERITY_COLORS[caution.severity]}`}
+                    >
+                      {SEVERITY_LABELS[caution.severity]}
+                    </span>
+                  )}
+                <span className="text-xs text-gray-500 capitalize font-medium">
+                  {caution.type.replace(/_/g, " ")}
+                </span>
+              </div>
+              <p className="text-gray-700 text-sm leading-relaxed">{caution.explanation}</p>
+              {caution.clinical_action && (
+                <p className="text-xs text-risk-amber font-semibold mt-2 flex items-center gap-1">
+                  <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                  </svg>
+                  {caution.clinical_action}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <DosageInfo
+          dosage={herb.dosage}
+          prefix="Dosage (discuss with doctor first)"
+        />
+      </div>
     </div>
   );
 }
@@ -232,42 +260,46 @@ export function SafeHerbCard({
   onEvidenceClick?: (herbId: string, herbName: string) => void;
 }) {
   return (
-    <div className="border-2 border-risk-green bg-risk-green-light rounded-lg p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-        <h3 className="font-semibold text-gray-900">
-          {herb.herb_name}
-          <span className="text-risk-green font-bold ml-1">— LOWER RISK</span>
-        </h3>
-        <span className="risk-badge-green shrink-0">LOWER RISK</span>
+    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-green/20 overflow-hidden card-hover">
+      {/* left color bar */}
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-green rounded-l-2xl" />
+
+      <div className="pl-5 pr-5 py-5 sm:pl-6 sm:pr-6">
+        <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <h3 className="text-base font-bold text-gray-900">
+            {herb.herb_name}
+          </h3>
+          <span className="risk-badge-green shrink-0 shadow-sm shadow-risk-green/20">LOWER RISK</span>
+        </div>
+
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs text-gray-500 font-medium">Evidence:</span>
+          <EvidenceBadge
+            grade={herb.evidence_grade}
+            onClick={
+              onEvidenceClick
+                ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
+                : undefined
+            }
+          />
+        </div>
+
+        {herb.evidence_grade && (
+          <p className="text-xs text-gray-500 leading-relaxed">
+            {GRADE_LABELS[herb.evidence_grade] ||
+              `Grade ${herb.evidence_grade}`}{" "}
+            for your concern
+          </p>
+        )}
+        {!herb.evidence_grade && (
+          <p className="text-xs text-gray-400 leading-relaxed">
+            No specific evidence match for your concern, but no safety concerns
+            identified.
+          </p>
+        )}
+
+        <DosageInfo dosage={herb.dosage} prefix="Standard dosage range" />
       </div>
-
-      <div className="flex items-center gap-1.5 mb-1">
-        <span className="text-xs text-gray-500 font-medium">Evidence:</span>
-        <EvidenceBadge
-          grade={herb.evidence_grade}
-          onClick={
-            onEvidenceClick
-              ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
-              : undefined
-          }
-        />
-      </div>
-
-      {herb.evidence_grade && (
-        <p className="text-xs text-gray-500 mb-1">
-          {GRADE_LABELS[herb.evidence_grade] ||
-            `Grade ${herb.evidence_grade}`}{" "}
-          for your concern
-        </p>
-      )}
-      {!herb.evidence_grade && (
-        <p className="text-xs text-gray-400 mb-1">
-          No specific evidence match for your concern, but no safety concerns
-          identified.
-        </p>
-      )}
-
-      <DosageInfo dosage={herb.dosage} prefix="Standard dosage range" />
     </div>
   );
 }
