@@ -93,6 +93,7 @@ export default function LandingPage() {
         <button
           onClick={proceed}
           disabled={!allChecked}
+          aria-disabled={!allChecked}
           className={`w-full py-3 px-4 rounded-lg font-medium text-sm transition-colors ${
             allChecked
               ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary cursor-pointer"

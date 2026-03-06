@@ -11,9 +11,9 @@ const config: Config = {
         risk: {
           red: "#DC2626",
           "red-light": "#FEF2F2",
-          amber: "#D97706",
+          amber: "#B45309",
           "amber-light": "#FFFBEB",
-          green: "#16A34A",
+          green: "#15803D",
           "green-light": "#F0FDF4",
         },
         ayurv: {

@@ -6,6 +6,8 @@ import type { RiskAssessment } from "@/lib/types";
 import EmergencyOverlay from "@/components/EmergencyOverlay";
 import WarningBanner from "@/components/WarningBanner";
 import EvidenceDrawer from "@/components/EvidenceDrawer";
+import DoctorCard from "@/components/DoctorCard";
+import DownloadReport from "@/components/DownloadReport";
 import {
   BlockedHerbCard,
   CautionHerbCard,
@@ -15,6 +17,12 @@ import {
 // 1-line plain English summary based on assessment counts
 function getSummary(result: RiskAssessment): string {
   const { blocked_herbs, caution_herbs, safe_herbs } = result;
+  const total = blocked_herbs.length + caution_herbs.length + safe_herbs.length;
+
+  // edge case: no herbs evaluated
+  if (total === 0) {
+    return "No herbs were evaluated. Please try a new assessment.";
+  }
 
   if (blocked_herbs.length === 0 && caution_herbs.length === 0) {
     return `All ${safe_herbs.length} herbs appear safe for your profile. Tap any herb for details.`;
@@ -36,6 +44,7 @@ export default function ResultsPage() {
   const [result, setResult] = useState<RiskAssessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
@@ -60,9 +69,22 @@ export default function ResultsPage() {
     }
   }, [router]);
 
+  // scroll-to-top visibility (P2-3)
+  useEffect(() => {
+    function handleScroll() {
+      setShowScrollTop(window.scrollY > 600);
+    }
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div
+        className="flex items-center justify-center min-h-[50vh]"
+        role="status"
+        aria-live="polite"
+      >
         <div className="animate-pulse text-gray-400 text-sm">
           Loading results...
         </div>
@@ -87,12 +109,19 @@ export default function ResultsPage() {
     result.caution_herbs.length +
     result.safe_herbs.length;
 
+  // check if doctor card should show (medication interactions present)
+  const hasMedInteractions = result.caution_herbs.some((h) =>
+    h.cautions.some((c) => c.type === "medication_interaction")
+  );
+  const showDoctorCard =
+    result.doctor_referral_suggested || hasMedInteractions;
+
   function handleEvidenceClick(herbId: string, herbName: string) {
     setDrawerHerb({ id: herbId, name: herbName });
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto pb-32">
       {/* 1. Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-ayurv-primary mb-1">
@@ -120,7 +149,7 @@ export default function ResultsPage() {
       <div className="flex gap-3 mb-6 flex-wrap">
         {result.blocked_herbs.length > 0 && (
           <div className="flex items-center gap-2 bg-risk-red-light border border-risk-red/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-red rounded-full" />
+            <span className="w-3 h-3 bg-risk-red rounded-full" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-800">
               {result.blocked_herbs.length} Blocked
             </span>
@@ -128,7 +157,7 @@ export default function ResultsPage() {
         )}
         {result.caution_herbs.length > 0 && (
           <div className="flex items-center gap-2 bg-risk-amber-light border border-risk-amber/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-amber rounded-full" />
+            <span className="w-3 h-3 bg-risk-amber rounded-full" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-800">
               {result.caution_herbs.length} Caution
             </span>
@@ -136,7 +165,7 @@ export default function ResultsPage() {
         )}
         {result.safe_herbs.length > 0 && (
           <div className="flex items-center gap-2 bg-risk-green-light border border-risk-green/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-green rounded-full" />
+            <span className="w-3 h-3 bg-risk-green rounded-full" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-800">
               {result.safe_herbs.length} Safe
             </span>
@@ -161,11 +190,17 @@ export default function ResultsPage() {
         </button>
       </div>
 
+      {/* 5b. Doctor Interaction Summary Card */}
+      {showDoctorCard && <DoctorCard result={result} />}
+
       {/* 6. BLOCKED HERBS (RED) */}
       {result.blocked_herbs.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-risk-red mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 bg-risk-red rounded-full" />
+        <section className="mb-8" aria-labelledby="blocked-heading">
+          <h2
+            id="blocked-heading"
+            className="text-lg font-semibold text-risk-red mb-3 flex items-center gap-2"
+          >
+            <span className="w-3 h-3 bg-risk-red rounded-full" aria-hidden="true" />
             Not Safe For You
           </h2>
           <p className="text-xs text-gray-500 mb-3">
@@ -182,9 +217,12 @@ export default function ResultsPage() {
 
       {/* 7. CAUTION HERBS (YELLOW) */}
       {result.caution_herbs.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-risk-amber mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 bg-risk-amber rounded-full" />
+        <section className="mb-8" aria-labelledby="caution-heading">
+          <h2
+            id="caution-heading"
+            className="text-lg font-semibold text-risk-amber mb-3 flex items-center gap-2"
+          >
+            <span className="w-3 h-3 bg-risk-amber rounded-full" aria-hidden="true" />
             Use With Doctor Guidance
           </h2>
           <p className="text-xs text-gray-500 mb-3">
@@ -205,9 +243,12 @@ export default function ResultsPage() {
 
       {/* 8. SAFE HERBS (GREEN) */}
       {result.safe_herbs.length > 0 && (
-        <section className="mb-8">
-          <h2 className="text-lg font-semibold text-risk-green mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 bg-risk-green rounded-full" />
+        <section className="mb-8" aria-labelledby="safe-heading">
+          <h2
+            id="safe-heading"
+            className="text-lg font-semibold text-risk-green mb-3 flex items-center gap-2"
+          >
+            <span className="w-3 h-3 bg-risk-green rounded-full" aria-hidden="true" />
             Lower Risk For Your Profile
           </h2>
           <p className="text-xs text-gray-500 mb-3">
@@ -229,7 +270,8 @@ export default function ResultsPage() {
       {/* 9. Disclaimer + New Assessment */}
       <div className="border-t border-gray-200 pt-6 mt-8">
         <p className="text-xs text-gray-400 mb-4">{result.disclaimer}</p>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <DownloadReport result={result} />
           <button
             onClick={() => {
               sessionStorage.removeItem("ayurv_result");
@@ -251,10 +293,10 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Floating Chat Button */}
+      {/* Floating Chat Button — above footer */}
       <button
         onClick={() => router.push("/chat")}
-        className="fixed bottom-6 right-6 bg-ayurv-primary text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center hover:bg-ayurv-secondary transition-colors z-50"
+        className="fixed bottom-20 right-6 bg-ayurv-primary text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center hover:bg-ayurv-secondary transition-colors z-40"
         aria-label="Chat with consultant"
       >
         <svg
@@ -264,6 +306,7 @@ export default function ResultsPage() {
           strokeWidth={1.5}
           stroke="currentColor"
           className="w-6 h-6"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -273,15 +316,38 @@ export default function ResultsPage() {
         </svg>
       </button>
 
-      {/* Evidence Drawer */}
-      {drawerHerb && (
-        <EvidenceDrawer
-          open={!!drawerHerb}
-          onClose={() => setDrawerHerb(null)}
-          herbId={drawerHerb.id}
-          herbName={drawerHerb.name}
-        />
+      {/* Scroll-to-top button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-20 left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
+          aria-label="Scroll to top"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            strokeWidth={2}
+            stroke="currentColor"
+            className="w-5 h-5"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4.5 15.75l7.5-7.5 7.5 7.5"
+            />
+          </svg>
+        </button>
       )}
+
+      {/* Evidence Drawer — always mounted for animation support */}
+      <EvidenceDrawer
+        open={!!drawerHerb}
+        onClose={() => setDrawerHerb(null)}
+        herbId={drawerHerb?.id || ""}
+        herbName={drawerHerb?.name || ""}
+      />
     </div>
   );
 }

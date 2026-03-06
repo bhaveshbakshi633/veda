@@ -7,28 +7,11 @@ import type {
   EvidenceGrade,
   InteractionSeverity,
 } from "@/lib/types";
+import { GRADE_COLORS, GRADE_LABELS } from "@/lib/constants";
 
 // ============================================
-// EVIDENCE GRADE BADGE
+// EVIDENCE GRADE BADGE (clickable + keyboard accessible)
 // ============================================
-
-const GRADE_COLORS: Record<string, string> = {
-  A: "bg-emerald-100 text-emerald-800",
-  B: "bg-blue-100 text-blue-800",
-  "B-C": "bg-sky-100 text-sky-800",
-  C: "bg-amber-100 text-amber-800",
-  "C-D": "bg-orange-100 text-orange-800",
-  D: "bg-gray-100 text-gray-600",
-};
-
-const GRADE_LABELS: Record<string, string> = {
-  A: "Strong Evidence (RCTs/Meta-analysis)",
-  B: "Moderate Evidence (Small Trials)",
-  "B-C": "Moderate-Limited Evidence",
-  C: "Limited Evidence (Animal/In-vitro)",
-  "C-D": "Very Limited Evidence",
-  D: "Traditional Use Only",
-};
 
 function EvidenceBadge({
   grade,
@@ -45,14 +28,24 @@ function EvidenceBadge({
     );
   }
 
-  const classes = `evidence-badge ${GRADE_COLORS[grade] || "bg-gray-100 text-gray-600"} ${onClick ? "cursor-pointer hover:opacity-80" : ""}`;
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        className={`evidence-badge ${GRADE_COLORS[grade] || "bg-gray-100 text-gray-600"} cursor-pointer hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-ayurv-primary focus:ring-offset-1`}
+        title={GRADE_LABELS[grade] || grade}
+        onClick={onClick}
+        aria-label={`View evidence details: ${GRADE_LABELS[grade] || `Grade ${grade}`}`}
+      >
+        Grade {grade}
+      </button>
+    );
+  }
 
   return (
     <span
-      className={classes}
+      className={`evidence-badge ${GRADE_COLORS[grade] || "bg-gray-100 text-gray-600"}`}
       title={GRADE_LABELS[grade] || grade}
-      onClick={onClick}
-      role={onClick ? "button" : undefined}
     >
       Grade {grade}
     </span>
@@ -100,7 +93,7 @@ function DosageInfo({
       <p className="text-xs text-gray-400 italic mb-2">{dosage.disclaimer}</p>
       <div className="space-y-1.5">
         {dosage.forms.map((form, i) => (
-          <div key={i} className="flex items-baseline gap-2 text-xs">
+          <div key={i} className="flex items-baseline gap-2 text-xs flex-wrap">
             <span className="font-medium text-gray-700 min-w-0 shrink-0">
               {form.form}:
             </span>
@@ -108,7 +101,9 @@ function DosageInfo({
               {form.range_min}–{form.range_max} {form.unit}
             </span>
             {form.notes && (
-              <span className="text-gray-400 truncate">({form.notes})</span>
+              <span className="text-gray-400" title={form.notes}>
+                ({form.notes})
+              </span>
             )}
           </div>
         ))}
@@ -124,12 +119,12 @@ function DosageInfo({
 export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
   return (
     <div className="border-2 border-risk-red bg-risk-red-light rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
         <h3 className="font-semibold text-gray-900">
           {herb.herb_name}
           <span className="text-risk-red font-bold ml-1">— NOT SAFE</span>
         </h3>
-        <span className="risk-badge-red">AVOID</span>
+        <span className="risk-badge-red shrink-0">AVOID</span>
       </div>
       <p className="text-sm text-gray-700 leading-relaxed">
         <span className="font-medium">Why: </span>
@@ -146,7 +141,6 @@ export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
       <p className="text-xs text-risk-red font-medium mt-2">
         What to do: Discuss alternatives with your doctor.
       </p>
-      {/* NO DOSAGE INFORMATION FOR BLOCKED HERBS — by design */}
     </div>
   );
 }
@@ -164,8 +158,8 @@ export function CautionHerbCard({
 }) {
   return (
     <div className="border-2 border-risk-amber bg-risk-amber-light rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold text-gray-900">
             {herb.herb_name}
             <span className="text-risk-amber font-bold ml-1">
@@ -181,7 +175,7 @@ export function CautionHerbCard({
             }
           />
         </div>
-        <span className="risk-badge-yellow">CAUTION</span>
+        <span className="risk-badge-yellow shrink-0">CAUTION</span>
       </div>
 
       <p className="text-xs text-risk-amber font-medium mb-2">
@@ -195,7 +189,7 @@ export function CautionHerbCard({
             key={i}
             className="bg-white/60 rounded p-2.5 text-sm border border-amber-200"
           >
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               {caution.type === "medication_interaction" &&
                 caution.severity && (
                   <span
@@ -239,16 +233,12 @@ export function SafeHerbCard({
 }) {
   return (
     <div className="border-2 border-risk-green bg-risk-green-light rounded-lg p-4">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-gray-900">
-            {herb.herb_name}
-            <span className="text-risk-green font-bold ml-1">
-              — LOWER RISK
-            </span>
-          </h3>
-        </div>
-        <span className="risk-badge-green">LOWER RISK</span>
+      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+        <h3 className="font-semibold text-gray-900">
+          {herb.herb_name}
+          <span className="text-risk-green font-bold ml-1">— LOWER RISK</span>
+        </h3>
+        <span className="risk-badge-green shrink-0">LOWER RISK</span>
       </div>
 
       <div className="flex items-center gap-1.5 mb-1">

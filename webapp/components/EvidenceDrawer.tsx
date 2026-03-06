@@ -1,29 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { EvidenceClaimRow, EvidenceGrade } from "@/lib/types";
-
-// grade badge colors — reuse same palette as HerbCard
-const GRADE_COLORS: Record<string, string> = {
-  A: "bg-emerald-100 text-emerald-800",
-  B: "bg-blue-100 text-blue-800",
-  "B-C": "bg-sky-100 text-sky-800",
-  C: "bg-amber-100 text-amber-800",
-  "C-D": "bg-orange-100 text-orange-800",
-  D: "bg-gray-100 text-gray-600",
-};
-
-// plain English explanations per grade
-const GRADE_EXPLANATIONS: Record<string, string> = {
-  A: "Strong evidence from multiple large clinical trials or meta-analyses.",
-  B: "Moderate evidence from smaller clinical studies. Promising but needs larger trials.",
-  "B-C":
-    "Moderate to limited evidence. Some clinical data supplemented by preclinical studies.",
-  C: "Limited evidence. Mainly laboratory or animal studies. Human data is sparse.",
-  "C-D":
-    "Very limited evidence. Mostly preclinical with anecdotal clinical reports.",
-  D: "Based on traditional Ayurvedic texts only. No clinical studies available.",
-};
+import { useState, useEffect, useRef, useCallback } from "react";
+import type { EvidenceClaimRow } from "@/lib/types";
+import { GRADE_COLORS, GRADE_EXPLANATIONS } from "@/lib/constants";
 
 interface EvidenceDrawerProps {
   open: boolean;
@@ -39,11 +18,16 @@ export default function EvidenceDrawer({
   herbName,
 }: EvidenceDrawerProps) {
   const [claims, setClaims] = useState<EvidenceClaimRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetchedHerbId, setLastFetchedHerbId] = useState<string | null>(null);
 
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // fetch evidence data (cache by herbId — only refetch if herb changes)
   useEffect(() => {
-    if (!open) return;
+    if (!open || herbId === lastFetchedHerbId) return;
 
     setLoading(true);
     setError(null);
@@ -55,35 +39,133 @@ export default function EvidenceDrawer({
       })
       .then((data: EvidenceClaimRow[]) => {
         setClaims(data);
+        setLastFetchedHerbId(herbId);
         setLoading(false);
       })
       .catch((err) => {
         setError(err.message);
         setLoading(false);
       });
-  }, [open, herbId]);
+  }, [open, herbId, lastFetchedHerbId]);
 
-  if (!open) return null;
+  // body scroll lock
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [open]);
+
+  // auto-focus close button when drawer opens
+  useEffect(() => {
+    if (open) {
+      // small delay to allow transition to start
+      const timer = setTimeout(() => closeButtonRef.current?.focus(), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
+  // escape key handler
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+
+  // focus trap
+  const handleFocusTrap = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !drawerRef.current) return;
+
+      const focusable = drawerRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    document.addEventListener("keydown", handleFocusTrap);
+    return () => document.removeEventListener("keydown", handleFocusTrap);
+  }, [open, handleFocusTrap]);
+
+  // grade-to-border-color for visual hierarchy (P2-9)
+  const gradeBorderColor = (grade: string): string => {
+    const map: Record<string, string> = {
+      A: "border-l-emerald-500",
+      B: "border-l-blue-500",
+      "B-C": "border-l-sky-500",
+      C: "border-l-amber-500",
+      "C-D": "border-l-orange-500",
+      D: "border-l-gray-400",
+    };
+    return map[grade] || "border-l-gray-300";
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <>
       {/* backdrop */}
       <div
-        className="absolute inset-0 bg-black/40"
+        className={`fixed inset-0 z-50 bg-black/40 transition-opacity duration-300 ${
+          open ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
         onClick={onClose}
+        aria-hidden="true"
       />
 
-      {/* drawer panel — slides up on mobile, centered on desktop */}
-      <div className="relative bg-white w-full sm:max-w-lg sm:rounded-lg rounded-t-2xl max-h-[85vh] overflow-y-auto shadow-xl">
+      {/* drawer panel */}
+      <div
+        ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="evidence-drawer-title"
+        aria-hidden={!open}
+        className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:right-0 sm:top-0 sm:bottom-0 z-50 bg-white w-full sm:max-w-lg sm:shadow-xl max-h-[85vh] sm:max-h-full overflow-y-auto rounded-t-2xl sm:rounded-none transition-transform duration-300 ease-out ${
+          open
+            ? "translate-y-0 sm:translate-x-0"
+            : "translate-y-full sm:translate-y-0 sm:translate-x-full"
+        }`}
+        // prevent interaction when hidden
+        {...(!open && { tabIndex: -1 })}
+      >
         {/* header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-lg">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="sticky top-0 bg-white border-b border-gray-200 px-5 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-none z-10">
+          <h2
+            id="evidence-drawer-title"
+            className="text-lg font-semibold text-gray-900"
+          >
             Evidence: {herbName}
           </h2>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1"
-            aria-label="Close"
+            className="text-gray-400 hover:text-gray-600 p-1 rounded focus:outline-none focus:ring-2 focus:ring-ayurv-primary"
+            aria-label="Close evidence drawer"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -92,6 +174,7 @@ export default function EvidenceDrawer({
               strokeWidth={2}
               stroke="currentColor"
               className="w-5 h-5"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -102,10 +185,13 @@ export default function EvidenceDrawer({
           </button>
         </div>
 
-        {/* content */}
-        <div className="px-5 py-4 space-y-5">
+        {/* content — aria-live for dynamic updates */}
+        <div className="px-5 py-4 space-y-5" aria-live="polite">
           {loading && (
-            <div className="flex items-center justify-center py-8">
+            <div
+              className="flex items-center justify-center py-8"
+              role="status"
+            >
               <div className="animate-pulse text-gray-400 text-sm">
                 Loading evidence...
               </div>
@@ -113,7 +199,10 @@ export default function EvidenceDrawer({
           )}
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">
+            <div
+              className="text-sm text-red-600 bg-red-50 rounded-lg p-3"
+              role="alert"
+            >
               Could not load evidence data. Try again later.
             </div>
           )}
@@ -129,7 +218,7 @@ export default function EvidenceDrawer({
             claims.map((claim) => (
               <div
                 key={claim.id}
-                className="border border-gray-200 rounded-lg p-4 space-y-2"
+                className={`border border-gray-200 border-l-4 ${gradeBorderColor(claim.evidence_grade)} rounded-lg p-4 space-y-2`}
               >
                 {/* grade badge + claim */}
                 <div className="flex items-start gap-2">
@@ -202,12 +291,12 @@ export default function EvidenceDrawer({
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-5 py-3">
           <button
             onClick={onClose}
-            className="w-full py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            className="w-full py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-ayurv-primary"
           >
             Close
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

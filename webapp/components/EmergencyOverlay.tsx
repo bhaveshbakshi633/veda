@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 interface EmergencyOverlayProps {
   message: string;
   flags: string[];
@@ -20,8 +22,16 @@ export default function EmergencyOverlay({
   message,
   flags,
 }: EmergencyOverlayProps) {
+  const router = useRouter();
+
   return (
-    <div className="fixed inset-0 z-50 bg-risk-red/95 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-risk-red/95 flex items-center justify-center p-4"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="emergency-title"
+      aria-describedby="emergency-message"
+    >
       <div className="bg-white rounded-2xl max-w-lg w-full p-8 text-center shadow-2xl">
         <div className="w-16 h-16 bg-risk-red rounded-full flex items-center justify-center mx-auto mb-4">
           <svg
@@ -29,6 +39,7 @@ export default function EmergencyOverlay({
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <path
               strokeLinecap="round"
@@ -39,11 +50,19 @@ export default function EmergencyOverlay({
           </svg>
         </div>
 
-        <h1 className="text-2xl font-bold text-risk-red mb-3">
+        <h1
+          id="emergency-title"
+          className="text-2xl font-bold text-risk-red mb-3"
+        >
           Seek Medical Help Immediately
         </h1>
 
-        <p className="text-gray-700 text-sm mb-6 leading-relaxed">{message}</p>
+        <p
+          id="emergency-message"
+          className="text-gray-700 text-sm mb-6 leading-relaxed"
+        >
+          {message}
+        </p>
 
         <div className="bg-risk-red-light rounded-lg p-4 mb-6">
           <p className="text-xs font-medium text-risk-red mb-2 uppercase tracking-wide">
@@ -62,17 +81,27 @@ export default function EmergencyOverlay({
           <a
             href="tel:112"
             className="block w-full py-3 bg-risk-red text-white font-semibold rounded-lg hover:bg-red-700 transition-colors"
+            aria-label="Call Emergency Services at 112"
           >
             Call Emergency: 112
           </a>
           <div className="text-gray-500 text-xs space-y-1">
             <p>India Crisis Helplines:</p>
             <p>
-              iCall: <strong>9152987821</strong> | Vandrevala Foundation:{" "}
-              <strong>1860-2662-345</strong>
+              iCall:{" "}
+              <a href="tel:9152987821" className="underline font-semibold hover:text-gray-700">
+                9152987821
+              </a>{" "}
+              | Vandrevala Foundation:{" "}
+              <a href="tel:18002662345" className="underline font-semibold hover:text-gray-700">
+                1860-2662-345
+              </a>
             </p>
             <p>
-              AASRA: <strong>9820466726</strong>
+              AASRA:{" "}
+              <a href="tel:9820466726" className="underline font-semibold hover:text-gray-700">
+                9820466726
+              </a>
             </p>
           </div>
         </div>
@@ -81,6 +110,16 @@ export default function EmergencyOverlay({
           This tool cannot provide medical care. The symptoms you reported
           require professional evaluation. No herbal information will be shown.
         </p>
+
+        <button
+          onClick={() => {
+            sessionStorage.removeItem("ayurv_result");
+            router.push("/intake");
+          }}
+          className="mt-4 text-xs text-gray-400 underline hover:text-gray-600 transition-colors"
+        >
+          I understand, take me back
+        </button>
       </div>
     </div>
   );
