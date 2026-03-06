@@ -151,9 +151,9 @@ export default function DoctorCard({ result }: DoctorCardProps) {
         Copy this clinical summary to share with your doctor. It includes all
         blocked herbs, drug interactions, and cautions from your assessment.
       </p>
-      <pre className="bg-white border border-gray-200 rounded p-3 text-xs text-gray-700 font-mono whitespace-pre-wrap overflow-x-auto max-h-48 overflow-y-auto">
+      <div className="bg-white border border-gray-200 rounded-lg p-3.5 text-xs text-gray-700 whitespace-pre-wrap overflow-y-auto max-h-48 leading-relaxed">
         {summaryText}
-      </pre>
+      </div>
     </div>
   );
 }

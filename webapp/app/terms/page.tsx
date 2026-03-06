@@ -226,7 +226,7 @@ export default function TermsOfServicePage() {
             For questions about these Terms of Service, please contact us at:
           </p>
           <p className="mt-2 font-medium text-ayurv-primary">
-            [Contact email to be added before launch]
+            legal@ayurv.in
           </p>
         </section>
       </div>

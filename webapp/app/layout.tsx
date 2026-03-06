@@ -1,19 +1,41 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
 export const metadata: Metadata = {
   title: "Ayurv — Herb Safety Intelligence",
   description:
     "Check if an Ayurvedic herb is safe for you — 50 herbs checked against your conditions, medications, and clinical evidence.",
+  openGraph: {
+    title: "Ayurv — Herb Safety Intelligence",
+    description: "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
+    type: "website",
+    locale: "en_IN",
+    siteName: "Ayurv",
+  },
+  twitter: {
+    card: "summary",
+    title: "Ayurv — Herb Safety Intelligence",
+    description: "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
+  },
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-ayurv-bg text-gray-900 pb-12 min-h-screen">
+      <body className={`${inter.variable} font-sans bg-ayurv-bg text-gray-900 pb-12 min-h-screen`}>
         {/* Skip to content — keyboard accessibility */}
         <a
           href="#main-content"
@@ -32,10 +54,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
               <span className="text-xl font-bold tracking-tight">Ayurv</span>
             </Link>
-            <span className="text-xs text-green-200/80 font-medium">
-              <span className="hidden sm:inline">Evidence-Based &middot; Safety-First &middot; Educational Only</span>
-              <span className="sm:hidden">Safety-First</span>
-            </span>
+            <div className="flex items-center gap-4">
+              <span className="text-xs text-green-200/80 font-medium hidden sm:inline">
+                Evidence-Based &middot; Safety-First &middot; Educational Only
+              </span>
+              <Link
+                href="/history"
+                className="flex items-center gap-1.5 text-xs text-green-200/80 hover:text-white transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+                <span className="hidden sm:inline">My Data</span>
+              </Link>
+            </div>
           </div>
         </header>
 

@@ -49,10 +49,21 @@ export default function PrivacyPolicyPage() {
 
           <h3 className="font-medium text-gray-800 mt-3 mb-1">Client-side (your browser)</h3>
           <p>
-            Your intake data (conditions, medications, preferences) is stored in your
-            browser&apos;s <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">sessionStorage</code>.
-            This data exists only for the duration of your browser tab session and is automatically cleared
-            when you close the tab. We do <strong>not</strong> use cookies or localStorage.
+            Your browser stores only a randomly generated anonymous ID
+            in <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">localStorage</code>.
+            This ID contains no personal information and is used to link your saved profile and
+            assessment history. Active session data is stored
+            in <code className="bg-gray-100 px-1 py-0.5 rounded text-xs">sessionStorage</code> and
+            is cleared when you close the tab. We do <strong>not</strong> use cookies.
+          </p>
+
+          <h3 className="font-medium text-gray-800 mt-3 mb-1">Server-side storage</h3>
+          <p>
+            Your health profile (age, sex, conditions, medications) and assessment results are stored
+            on our servers linked to your anonymous ID. This allows you to return and see your past results
+            without re-entering information. We do <strong>not</strong> store your name, email,
+            phone number, or any directly identifying information. You can delete all your server-side
+            data at any time from the <strong>My Data</strong> page.
           </p>
 
           <h3 className="font-medium text-gray-800 mt-3 mb-1">Server-side audit logs</h3>
@@ -76,10 +87,12 @@ export default function PrivacyPolicyPage() {
 
         {/* No Accounts */}
         <section>
-          <h2 className="text-lg font-semibold text-ayurv-primary mb-3">4. No User Accounts or Persistent Profiles</h2>
+          <h2 className="text-lg font-semibold text-ayurv-primary mb-3">4. No User Accounts</h2>
           <p>
-            Ayurv does not require user registration, login, or account creation. There are no persistent
-            user profiles. Each session is independent and anonymous.
+            Ayurv does not require user registration, login, email, or account creation. We use anonymous
+            device-linked identifiers (random UUIDs) to save your profile and assessment history. These
+            identifiers contain no personal information. You can delete all data at any time from the
+            My Data page.
           </p>
         </section>
 
@@ -98,26 +111,31 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-lg font-semibold text-ayurv-primary mb-3">6. Data Retention</h2>
           <ul className="list-disc pl-5 space-y-1">
             <li>
+              <strong>Client-side anonymous ID:</strong> Stored in your browser&apos;s localStorage.
+              Persists until you clear it from the My Data page or clear your browser data.
+            </li>
+            <li>
               <strong>Client-side session data:</strong> Cleared automatically when you close the browser
               tab (sessionStorage).
             </li>
             <li>
-              <strong>Server-side audit logs:</strong> Auto-deleted after 24 hours.
+              <strong>Server-side profile &amp; history:</strong> Stored until you delete it from the
+              My Data page. Linked to an anonymous ID with no personally identifiable information.
             </li>
             <li>
-              <strong>No long-term data storage:</strong> We do not maintain any persistent database of
-              user sessions or health information.
+              <strong>Server-side audit logs:</strong> Auto-deleted after 24 hours.
             </li>
           </ul>
         </section>
 
         {/* Cookies */}
         <section>
-          <h2 className="text-lg font-semibold text-ayurv-primary mb-3">7. Cookies</h2>
+          <h2 className="text-lg font-semibold text-ayurv-primary mb-3">7. Cookies &amp; Local Storage</h2>
           <p>
             Ayurv does <strong>not</strong> use cookies of any kind — no tracking cookies, no analytics
-            cookies, no session cookies. We use only browser sessionStorage, which is not accessible to
-            other websites and is not transmitted to any server automatically.
+            cookies, no session cookies. We use browser localStorage (for storing your anonymous ID) and
+            sessionStorage (for the current session). Neither is accessible to other websites or
+            transmitted to any server automatically.
           </p>
         </section>
 
@@ -164,7 +182,7 @@ export default function PrivacyPolicyPage() {
             For privacy-related questions, concerns, or data requests, please contact us at:
           </p>
           <p className="mt-2 font-medium text-ayurv-primary">
-            [Contact email to be added before launch]
+            privacy@ayurv.in
           </p>
         </section>
 

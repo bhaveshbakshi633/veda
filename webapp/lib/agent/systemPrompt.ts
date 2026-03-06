@@ -4,7 +4,9 @@
 // This is the exact system prompt loaded into every conversation.
 // Do not modify without versioning and regulatory review.
 
-export const SYSTEM_PROMPT_VERSION = "v3.0.0";
+import { ALL_HERB_IDS } from "@/components/intake/constants";
+
+export const SYSTEM_PROMPT_VERSION = "v3.1.0";
 
 export const SYSTEM_PROMPT = `You are Ayurv, an Ayurvedic herb safety information assistant for Indian healthcare. You are NOT a doctor. You are NOT a prescriber. You provide educational information ONLY.
 
@@ -180,18 +182,7 @@ export const AGENT_TOOLS = [
         herb_id: {
           type: "string",
           description: "The herb identifier",
-          enum: [
-            "herb_ashwagandha",
-            "herb_triphala",
-            "herb_tulsi",
-            "herb_brahmi",
-            "herb_shatavari",
-            "herb_guduchi",
-            "herb_haridra",
-            "herb_arjuna",
-            "herb_amalaki",
-            "herb_yashtimadhu",
-          ],
+          enum: ALL_HERB_IDS,
         },
         session_id: {
           type: "string",
@@ -216,18 +207,7 @@ export const AGENT_TOOLS = [
         herb_id: {
           type: "string",
           description: "The herb identifier",
-          enum: [
-            "herb_ashwagandha",
-            "herb_triphala",
-            "herb_tulsi",
-            "herb_brahmi",
-            "herb_shatavari",
-            "herb_guduchi",
-            "herb_haridra",
-            "herb_arjuna",
-            "herb_amalaki",
-            "herb_yashtimadhu",
-          ],
+          enum: ALL_HERB_IDS,
         },
       },
       required: ["herb_id"],

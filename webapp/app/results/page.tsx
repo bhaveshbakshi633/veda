@@ -8,6 +8,7 @@ import WarningBanner from "@/components/WarningBanner";
 import EvidenceDrawer from "@/components/EvidenceDrawer";
 import DoctorCard from "@/components/DoctorCard";
 import DownloadReport from "@/components/DownloadReport";
+// assessment auto-saved server-side in /api/assess — no client-side save needed
 import {
   BlockedHerbCard,
   CautionHerbCard,
@@ -45,6 +46,10 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showAllBlocked, setShowAllBlocked] = useState(false);
+  const [showAllCaution, setShowAllCaution] = useState(false);
+  const [showAllSafe, setShowAllSafe] = useState(false);
+  const INITIAL_SHOW = 3;
 
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
@@ -133,7 +138,7 @@ export default function ResultsPage() {
       </div>
 
       {/* 2. Quick Summary Card */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+      <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl p-4 mb-6">
         <p className="text-sm text-gray-800">{getSummary(result)}</p>
       </div>
 
@@ -151,7 +156,7 @@ export default function ResultsPage() {
           <div className="flex items-center gap-2 bg-risk-red-light border border-risk-red/20 rounded-lg px-3 py-2">
             <span className="w-3 h-3 bg-risk-red rounded-full" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-800">
-              {result.blocked_herbs.length} Blocked
+              {result.blocked_herbs.length} Not Safe
             </span>
           </div>
         )}
@@ -173,24 +178,7 @@ export default function ResultsPage() {
         )}
       </div>
 
-      {/* 5. Chat CTA — moved up, directly after chips */}
-      <div className="bg-ayurv-primary/5 border border-ayurv-primary/20 rounded-lg p-5 mb-8">
-        <h3 className="font-semibold text-ayurv-primary mb-1">
-          Want to understand your results?
-        </h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Ask the Ayurv consultant about specific herbs, dosages, or
-          interactions — it knows your health profile.
-        </p>
-        <button
-          onClick={() => router.push("/chat")}
-          className="px-5 py-2.5 bg-ayurv-primary text-white rounded-lg text-sm font-medium hover:bg-ayurv-secondary transition-colors"
-        >
-          Ask About My Results
-        </button>
-      </div>
-
-      {/* 5b. Doctor Interaction Summary Card */}
+      {/* 5. Doctor Interaction Summary Card */}
       {showDoctorCard && <DoctorCard result={result} />}
 
       {/* 6. BLOCKED HERBS (RED) */}
@@ -208,10 +196,18 @@ export default function ResultsPage() {
             do not show dosage for blocked herbs.
           </p>
           <div className="space-y-3">
-            {result.blocked_herbs.map((herb) => (
+            {(showAllBlocked ? result.blocked_herbs : result.blocked_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
               <BlockedHerbCard key={herb.herb_id} herb={herb} />
             ))}
           </div>
+          {!showAllBlocked && result.blocked_herbs.length > INITIAL_SHOW && (
+            <button
+              onClick={() => setShowAllBlocked(true)}
+              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-red border border-risk-red/20 rounded-xl hover:bg-risk-red-light transition-colors"
+            >
+              Show {result.blocked_herbs.length - INITIAL_SHOW} more blocked herb{result.blocked_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
+            </button>
+          )}
         </section>
       )}
 
@@ -230,7 +226,7 @@ export default function ResultsPage() {
             Discuss with your doctor before use.
           </p>
           <div className="space-y-3">
-            {result.caution_herbs.map((herb) => (
+            {(showAllCaution ? result.caution_herbs : result.caution_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
               <CautionHerbCard
                 key={herb.herb_id}
                 herb={herb}
@@ -238,6 +234,14 @@ export default function ResultsPage() {
               />
             ))}
           </div>
+          {!showAllCaution && result.caution_herbs.length > INITIAL_SHOW && (
+            <button
+              onClick={() => setShowAllCaution(true)}
+              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-amber border border-risk-amber/20 rounded-xl hover:bg-risk-amber-light transition-colors"
+            >
+              Show {result.caution_herbs.length - INITIAL_SHOW} more caution herb{result.caution_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
+            </button>
+          )}
         </section>
       )}
 
@@ -256,7 +260,7 @@ export default function ResultsPage() {
             clinical evidence.
           </p>
           <div className="space-y-3">
-            {result.safe_herbs.map((herb) => (
+            {(showAllSafe ? result.safe_herbs : result.safe_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
               <SafeHerbCard
                 key={herb.herb_id}
                 herb={herb}
@@ -264,6 +268,14 @@ export default function ResultsPage() {
               />
             ))}
           </div>
+          {!showAllSafe && result.safe_herbs.length > INITIAL_SHOW && (
+            <button
+              onClick={() => setShowAllSafe(true)}
+              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-green border border-risk-green/20 rounded-xl hover:bg-risk-green-light transition-colors"
+            >
+              Show {result.safe_herbs.length - INITIAL_SHOW} more safe herb{result.safe_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
+            </button>
+          )}
         </section>
       )}
 
@@ -296,7 +308,7 @@ export default function ResultsPage() {
       {/* Floating Chat Button — above footer */}
       <button
         onClick={() => router.push("/chat")}
-        className="fixed bottom-20 right-6 bg-ayurv-primary text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center hover:bg-ayurv-secondary transition-colors z-40"
+        className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 bg-ayurv-primary text-white rounded-full w-12 h-12 sm:w-14 sm:h-14 shadow-lg flex items-center justify-center hover:bg-ayurv-secondary transition-colors z-40"
         aria-label="Chat with consultant"
       >
         <svg
@@ -320,7 +332,7 @@ export default function ResultsPage() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-20 left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
+          className="fixed bottom-16 left-4 sm:bottom-20 sm:left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
           aria-label="Scroll to top"
         >
           <svg

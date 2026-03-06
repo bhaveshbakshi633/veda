@@ -8,6 +8,9 @@ const LIMITS: Record<string, number> = {
   "/api/assess": 10,   // 10 assessments per minute
   "/api/chat": 30,     // 30 chat messages per minute
   "/api/evidence": 60, // 60 evidence lookups per minute
+  "/api/user": 20,     // 20 user ops per minute
+  "/api/profile": 20,  // 20 profile ops per minute
+  "/api/user/history": 30, // 30 history lookups per minute
 };
 
 interface RateEntry {
@@ -68,5 +71,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/api/assess", "/api/chat", "/api/evidence"],
+  matcher: ["/api/assess", "/api/chat", "/api/evidence", "/api/user", "/api/profile", "/api/user/history"],
 };

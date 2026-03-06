@@ -26,12 +26,13 @@ export async function POST(request: NextRequest) {
     // ============================================
     const db = getServiceClient();
 
-    // 1. Create intake session
+    // 1. Create intake session (link to anonymous user if provided)
     const { error: sessionError } = await db.from("intake_sessions").insert({
       id: result.session_id,
       intake_data: body,
       assessment_result: result,
       status: "assessed",
+      anonymous_uid: body.anonymous_uid || null,
     });
 
     if (sessionError) {

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { getOrCreateUid, hasAcceptedDisclaimer, saveDisclaimerAccepted } from "@/lib/storage";
 
 const DISCLAIMER_CHECKS = [
   {
@@ -61,6 +62,33 @@ export default function LandingPage() {
     responsibility: false,
   });
 
+  const [savedProfile, setSavedProfile] = useState<{ assessments: number } | null>(null);
+
+  // check for returning user — fetch from backend
+  useEffect(() => {
+    if (hasAcceptedDisclaimer()) {
+      setChecks({ educational: true, consult: true, responsibility: true });
+    }
+
+    const uid = getOrCreateUid();
+    // register/touch user and check for saved profile
+    Promise.all([
+      fetch("/api/user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, user_agent: navigator.userAgent }),
+      }).then((r) => r.json()).catch(() => null),
+      fetch(`/api/profile?uid=${uid}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/user/history?uid=${uid}`).then((r) => r.json()).catch(() => null),
+    ]).then(([userRes, profileRes, historyRes]) => {
+      const hasProfile = profileRes?.profile !== null;
+      const assessmentCount = historyRes?.history?.length || 0;
+      if (hasProfile || assessmentCount > 0) {
+        setSavedProfile({ assessments: assessmentCount });
+      }
+    });
+  }, []);
+
   const allChecked = DISCLAIMER_CHECKS.every((c) => checks[c.id]);
 
   function toggleCheck(id: string) {
@@ -74,6 +102,7 @@ export default function LandingPage() {
       "ayurv_disclaimer",
       JSON.stringify({ accepted: true, timestamp: ts, version: "v1.0", checks })
     );
+    saveDisclaimerAccepted();
     router.push("/intake");
   }
 
@@ -111,6 +140,37 @@ export default function LandingPage() {
           </span>
         </div>
       </section>
+
+      {/* ---- Welcome Back Banner ---- */}
+      {savedProfile && (
+        <section className="mb-8 animate-fade-in">
+          <div className="bg-white border border-ayurv-primary/15 rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-ayurv-primary/10 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-ayurv-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Welcome back!</p>
+                  <p className="text-xs text-gray-500">
+                    Welcome back{savedProfile.assessments > 0 ? ` — ${savedProfile.assessments} past assessment${savedProfile.assessments > 1 ? "s" : ""}` : ""}. Your profile is saved.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => router.push("/history")}
+                  className={`px-3.5 py-2 text-xs font-medium text-ayurv-primary border border-ayurv-primary/20 rounded-xl hover:bg-ayurv-primary/5 transition-colors ${savedProfile.assessments === 0 ? "hidden" : ""}`}
+                >
+                  Past Results
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ---- How it Works ---- */}
       <section className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">

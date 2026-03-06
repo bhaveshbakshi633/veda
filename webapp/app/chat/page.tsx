@@ -10,6 +10,13 @@ interface Message {
   tools_called?: string[];
 }
 
+const SUGGESTION_CHIPS = [
+  "Is Ashwagandha safe for me?",
+  "What about drug interactions?",
+  "Which herbs should I avoid?",
+  "Tell me about dosage",
+];
+
 export default function ChatPage() {
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -17,8 +24,10 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [escalated, setEscalated] = useState(false);
+  const [sendingTooLong, setSendingTooLong] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const sendingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load session and send initial greeting
   useEffect(() => {
@@ -63,6 +72,8 @@ export default function ChatPage() {
     setMessages(updatedMessages);
     setInput("");
     setSending(true);
+    setSendingTooLong(false);
+    sendingTimerRef.current = setTimeout(() => setSendingTooLong(true), 15000);
 
     try {
       // Build history for API (exclude the current message, it's sent separately)
@@ -109,6 +120,8 @@ export default function ChatPage() {
       ]);
     } finally {
       setSending(false);
+      setSendingTooLong(false);
+      if (sendingTimerRef.current) clearTimeout(sendingTimerRef.current);
       inputRef.current?.focus();
     }
   }
@@ -142,12 +155,14 @@ export default function ChatPage() {
             onClick={() => router.push("/results")}
             className="px-3.5 py-2 text-xs font-semibold text-ayurv-primary border border-ayurv-primary/20 rounded-xl hover:bg-ayurv-primary hover:text-white transition-all duration-200 hover:shadow-sm"
           >
-            View Assessment
+            Back to Results
           </button>
           <button
             onClick={() => {
-              sessionStorage.removeItem("ayurv_result");
-              router.push("/intake");
+              if (window.confirm("Start a new assessment? Your current results will be cleared.")) {
+                sessionStorage.removeItem("ayurv_result");
+                router.push("/intake");
+              }
             }}
             className="px-3.5 py-2 text-xs text-gray-400 hover:text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
           >
@@ -157,7 +172,7 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4 min-h-0 px-1">
+      <div className="flex-1 overflow-y-auto space-y-4 pb-4 min-h-0 px-1" aria-live="polite" aria-relevant="additions">
         {messages
           .filter((m) => !(m.role === "user" && m.content.startsWith("Hello, I'd like")))
           .map((msg, i) => (
@@ -210,18 +225,7 @@ export default function ChatPage() {
                     }
                     return <p key={j}>{rendered}</p>;
                   })}
-                  {msg.tools_called && msg.tools_called.length > 0 && (
-                    <div className="mt-2.5 pt-2.5 border-t border-gray-100 flex flex-wrap gap-1.5">
-                      {[...new Set(msg.tools_called)].map((tool) => (
-                        <span
-                          key={tool}
-                          className="text-[10px] px-2 py-0.5 bg-gray-50 text-gray-400 rounded-full font-mono border border-gray-100"
-                        >
-                          {tool}
-                        </span>
-                      ))}
-                    </div>
-                  )}
+                  {/* tool badges hidden — internal implementation detail */}
                 </div>
               ) : (
                 <p>{msg.content}</p>
@@ -229,6 +233,21 @@ export default function ChatPage() {
             </div>
           </div>
         ))}
+
+        {/* Suggestion chips — shown when no user messages yet */}
+        {!sending && messages.filter((m) => m.role === "user" && !m.content.startsWith("Hello, I'd like")).length === 0 && messages.length > 0 && (
+          <div className="flex flex-wrap gap-2 px-1 animate-fade-in">
+            {SUGGESTION_CHIPS.map((chip) => (
+              <button
+                key={chip}
+                onClick={() => sendMessage(chip)}
+                className="px-3.5 py-2 text-xs font-medium bg-ayurv-primary/5 text-ayurv-primary border border-ayurv-primary/15 rounded-full hover:bg-ayurv-primary/10 hover:border-ayurv-primary/25 transition-all"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Typing indicator */}
         {sending && (
@@ -239,11 +258,14 @@ export default function ChatPage() {
               </svg>
             </div>
             <div className="bg-white border border-gray-200/80 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                 <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                 <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
+              {sendingTooLong && (
+                <p className="text-[10px] text-gray-400 mt-1.5">Still thinking...</p>
+              )}
             </div>
           </div>
         )}
@@ -263,20 +285,32 @@ export default function ChatPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-center bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 focus-within:shadow-md focus-within:border-ayurv-accent/30">
-              <input
+            <div className="flex items-end bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-200 focus-within:shadow-md focus-within:border-ayurv-accent/30">
+              <textarea
                 ref={inputRef}
-                type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
                 disabled={sending}
                 placeholder="Ask about herbs, safety, dosage..."
-                className="flex-1 bg-transparent border-none px-5 py-3.5 text-sm focus:outline-none focus:ring-0 disabled:opacity-50 placeholder:text-gray-400"
+                rows={1}
+                className="flex-1 bg-transparent border-none px-5 py-3.5 text-sm focus:outline-none focus:ring-0 disabled:opacity-50 placeholder:text-gray-400 resize-none max-h-32"
+                style={{ height: "auto", minHeight: "48px" }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  target.style.height = Math.min(target.scrollHeight, 128) + "px";
+                }}
               />
               <button
                 type="submit"
                 disabled={!input.trim() || sending}
-                className={`mr-2 p-2.5 rounded-xl transition-all duration-200 ${
+                className={`mr-2 mb-2 p-2.5 rounded-xl transition-all duration-200 shrink-0 ${
                   input.trim() && !sending
                     ? "bg-ayurv-primary text-white shadow-sm hover:bg-ayurv-secondary hover:shadow-md"
                     : "bg-gray-100 text-gray-300 cursor-not-allowed"
