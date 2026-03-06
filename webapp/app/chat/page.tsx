@@ -171,27 +171,29 @@ export default function ChatPage() {
                 <div className="space-y-2">
                   {msg.content.split("\n").map((line, j) => {
                     if (!line.trim()) return <div key={j} className="h-2" />;
-                    // Bold
-                    const formatted = line.replace(
-                      /\*\*(.+?)\*\*/g,
-                      '<strong>$1</strong>'
+                    // Bullet point
+                    const isBullet = line.trim().startsWith("- ");
+                    const text = isBullet ? line.replace(/^-\s*/, "").trim() : line;
+                    // Safe bold rendering — split on **text** and render as spans
+                    const parts = text.split(/\*\*(.+?)\*\*/g);
+                    const rendered = parts.map((part, k) =>
+                      k % 2 === 1 ? (
+                        <strong key={k}>{part}</strong>
+                      ) : (
+                        <span key={k}>{part}</span>
+                      )
                     );
-                    // Bullet
-                    if (line.trim().startsWith("- ")) {
+                    if (isBullet) {
                       return (
                         <div
                           key={j}
                           className="pl-4 relative before:content-['•'] before:absolute before:left-1 before:text-ayurv-accent"
-                          dangerouslySetInnerHTML={{ __html: formatted.replace(/^-\s*/, "") }}
-                        />
+                        >
+                          {rendered}
+                        </div>
                       );
                     }
-                    return (
-                      <p
-                        key={j}
-                        dangerouslySetInnerHTML={{ __html: formatted }}
-                      />
-                    );
+                    return <p key={j}>{rendered}</p>;
                   })}
                   {msg.tools_called && msg.tools_called.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-gray-100 flex flex-wrap gap-1">

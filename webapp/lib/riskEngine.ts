@@ -6,6 +6,7 @@
 
 import { getServiceClient } from "@/lib/supabase";
 import { intakeSchema, deriveAgeGroup } from "@/lib/validation/intakeSchema";
+import { mapConditionToDbId, mapMedicationToDbId } from "@/lib/mappings";
 import type {
   IntakeData,
   RiskAssessment,
@@ -24,54 +25,16 @@ import type {
 } from "@/lib/types";
 
 // ============================================
-// INTAKE → DB ID MAPPING
+// INTAKE → DB ID MAPPING (shared module)
 // ============================================
-
-const AUTOIMMUNE_CONDITIONS = [
-  "autoimmune_lupus",
-  "autoimmune_ra",
-  "autoimmune_ms",
-  "autoimmune_hashimotos",
-  "autoimmune_graves",
-  "autoimmune_other",
-];
-
-const CONDITION_OVERRIDES: Record<string, string> = {
-  scheduled_surgery_within_4_weeks: "cond_scheduled_surgery",
-};
-
-const MEDICATION_OVERRIDES: Record<string, string> = {
-  antihypertensive_ace_arb: "med_ace_arb",
-  antihypertensive_beta_blocker: "med_beta_blocker",
-  antihypertensive_ccb: "med_ccb",
-  antihypertensive_diuretic_loop: "med_diuretic_loop",
-  antihypertensive_diuretic_thiazide: "med_diuretic_thiazide",
-  thyroid_levothyroxine: "med_levothyroxine",
-  antithyroid_medication: "med_antithyroid",
-  diuretic_potassium_sparing: "med_diuretic_potassium_sparing",
-};
 
 function mapConditionsToDbIds(
   conditions: string[],
   pregnancyStatus: string
 ): string[] {
-  const ids: string[] = [];
-
-  for (const cond of conditions) {
-    if (cond === "none" || cond === "other") continue;
-
-    if (AUTOIMMUNE_CONDITIONS.includes(cond)) {
-      ids.push("cond_autoimmune");
-      continue;
-    }
-
-    if (CONDITION_OVERRIDES[cond]) {
-      ids.push(CONDITION_OVERRIDES[cond]);
-      continue;
-    }
-
-    ids.push(`cond_${cond}`);
-  }
+  const ids: string[] = conditions
+    .map(mapConditionToDbId)
+    .filter((id): id is string => id !== null);
 
   // Derive reproductive conditions from pregnancy status
   if (pregnancyStatus.startsWith("pregnant_")) {
@@ -86,19 +49,9 @@ function mapConditionsToDbIds(
 }
 
 function mapMedicationsToDbIds(medications: string[]): string[] {
-  const ids: string[] = [];
-
-  for (const med of medications) {
-    if (med === "none" || med === "other") continue;
-
-    if (MEDICATION_OVERRIDES[med]) {
-      ids.push(MEDICATION_OVERRIDES[med]);
-    } else {
-      ids.push(`med_${med}`);
-    }
-  }
-
-  return ids;
+  return medications
+    .map(mapMedicationToDbId)
+    .filter((id): id is string => id !== null);
 }
 
 // ============================================

@@ -12,11 +12,11 @@ const VALID_HERB_IDS = [
   "herb_shatavari",
   "herb_triphala",
   "herb_tulsi",
-  "herb_guggulu",
-  "herb_turmeric",
-  "herb_neem",
-  "herb_moringa",
-  "herb_giloy",
+  "herb_guduchi",
+  "herb_haridra",
+  "herb_arjuna",
+  "herb_amalaki",
+  "herb_yashtimadhu",
 ];
 
 export async function GET(request: NextRequest) {

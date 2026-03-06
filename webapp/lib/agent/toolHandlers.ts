@@ -13,41 +13,10 @@ import type {
 } from "@/lib/types";
 
 // ============================================
-// MAPPING (same as riskEngine.ts)
+// MAPPING — shared single source of truth
 // ============================================
 
-const AUTOIMMUNE_CONDITIONS = [
-  "autoimmune_lupus", "autoimmune_ra", "autoimmune_ms",
-  "autoimmune_hashimotos", "autoimmune_graves", "autoimmune_other",
-];
-
-const CONDITION_OVERRIDES: Record<string, string> = {
-  scheduled_surgery_within_4_weeks: "cond_scheduled_surgery",
-};
-
-const MEDICATION_OVERRIDES: Record<string, string> = {
-  antihypertensive_ace_arb: "med_ace_arb",
-  antihypertensive_beta_blocker: "med_beta_blocker",
-  antihypertensive_ccb: "med_ccb",
-  antihypertensive_diuretic_loop: "med_diuretic_loop",
-  antihypertensive_diuretic_thiazide: "med_diuretic_thiazide",
-  thyroid_levothyroxine: "med_levothyroxine",
-  antithyroid_medication: "med_antithyroid",
-  diuretic_potassium_sparing: "med_diuretic_potassium_sparing",
-};
-
-function mapConditionToDbId(cond: string): string | null {
-  if (cond === "none" || cond === "other") return null;
-  if (AUTOIMMUNE_CONDITIONS.includes(cond)) return "cond_autoimmune";
-  if (CONDITION_OVERRIDES[cond]) return CONDITION_OVERRIDES[cond];
-  return `cond_${cond}`;
-}
-
-function mapMedicationToDbId(med: string): string | null {
-  if (med === "none" || med === "other") return null;
-  if (MEDICATION_OVERRIDES[med]) return MEDICATION_OVERRIDES[med];
-  return `med_${med}`;
-}
+import { mapConditionToDbId, mapMedicationToDbId } from "@/lib/mappings";
 
 // ============================================
 // TOOL: getUserProfile
