@@ -266,15 +266,54 @@ export interface AuditEntry {
   trigger_value?: string;
 }
 
+// ============================================
+// PERSONALIZED RECOMMENDATION TYPES
+// ============================================
+
+export interface RecommendedHerb {
+  herb_id: string;
+  herb_name: string;
+  evidence_grade: EvidenceGrade | null;
+  matching_claims: EvidenceClaimRow[];
+  relevance_summary: string;
+  safety_note: string;
+  dosage: HerbRow["dosage_ranges"];
+}
+
+export interface CautionRecommendation {
+  herb_id: string;
+  herb_name: string;
+  evidence_grade: EvidenceGrade | null;
+  caution_score: number;
+  cautions: CautionEntry[];
+  matching_claims: EvidenceClaimRow[];
+  relevance_summary: string;
+  safety_note: string;
+  dosage: HerbRow["dosage_ranges"];
+}
+
+export interface AvoidRecommendation {
+  herb_id: string;
+  herb_name: string;
+  reason: string;
+  trigger: string;
+  trigger_type: "condition" | "medication" | "pregnancy";
+  matching_claims: EvidenceClaimRow[];
+  relevance_summary: string;
+}
+
 export interface RiskAssessment {
-  status: "COMPLETE" | "EMERGENCY_ESCALATION" | "ERROR";
+  status: "COMPLETE" | "EMERGENCY_ESCALATION" | "ERROR" | "NO_MATCHES";
   session_id: string;
   disclaimer: string;
+  concern: string;
+  concern_label: string;
   emergency_message?: string;
   red_flags_triggered?: string[];
-  blocked_herbs: BlockedHerb[];
-  caution_herbs: CautionHerb[];
-  safe_herbs: SafeHerb[];
+  recommended_herbs: RecommendedHerb[];
+  caution_herbs: CautionRecommendation[];
+  avoid_herbs: AvoidRecommendation[];
+  total_relevant: number;
   doctor_referral_suggested: boolean;
   audit_trail: AuditEntry[];
 }

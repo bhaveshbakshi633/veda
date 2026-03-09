@@ -31,17 +31,19 @@ export async function GET(request: NextRequest) {
     const result = row.assessment_result as Record<string, unknown> | null;
     if (!result) return null;
 
-    const blocked = (result.blocked_herbs as unknown[]) || [];
+    const recommended = (result.recommended_herbs as unknown[]) || [];
     const caution = (result.caution_herbs as unknown[]) || [];
-    const safe = (result.safe_herbs as unknown[]) || [];
+    const avoid = (result.avoid_herbs as unknown[]) || [];
 
     return {
       id: row.id,
       date: row.created_at,
-      blocked_count: blocked.length,
+      concern: result.concern || "",
+      concern_label: result.concern_label || "",
+      recommended_count: recommended.length,
       caution_count: caution.length,
-      safe_count: safe.length,
-      total: blocked.length + caution.length + safe.length,
+      avoid_count: avoid.length,
+      total: recommended.length + caution.length + avoid.length,
     };
   }).filter(Boolean);
 

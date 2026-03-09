@@ -7,9 +7,11 @@ import { getOrCreateUid, clearAllLocalData } from "@/lib/storage";
 interface HistoryEntry {
   id: string;
   date: string;
-  blocked_count: number;
+  concern: string;
+  concern_label: string;
+  recommended_count: number;
   caution_count: number;
-  safe_count: number;
+  avoid_count: number;
   total: number;
 }
 
@@ -222,12 +224,15 @@ export default function HistoryPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-400 mb-1.5">{formatDate(entry.date)}</p>
+                    <p className="text-xs text-gray-400 mb-1">{formatDate(entry.date)}</p>
+                    <p className="text-sm font-medium text-gray-800 mb-1.5">
+                      {entry.concern_label || "Assessment"}
+                    </p>
                     <div className="flex flex-wrap gap-2 mb-1">
-                      {entry.blocked_count > 0 && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-risk-red bg-risk-red-light px-2 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 bg-risk-red rounded-full" />
-                          {entry.blocked_count} not safe
+                      {entry.recommended_count > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-risk-green bg-risk-green-light px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 bg-risk-green rounded-full" />
+                          {entry.recommended_count} recommended
                         </span>
                       )}
                       {entry.caution_count > 0 && (
@@ -236,14 +241,14 @@ export default function HistoryPage() {
                           {entry.caution_count} caution
                         </span>
                       )}
-                      {entry.safe_count > 0 && (
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-risk-green bg-risk-green-light px-2 py-0.5 rounded-full">
-                          <span className="w-1.5 h-1.5 bg-risk-green rounded-full" />
-                          {entry.safe_count} safe
+                      {entry.avoid_count > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-risk-red bg-risk-red-light px-2 py-0.5 rounded-full">
+                          <span className="w-1.5 h-1.5 bg-risk-red rounded-full" />
+                          {entry.avoid_count} avoid
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400">{entry.total} herbs evaluated</p>
+                    <p className="text-xs text-gray-400">{entry.total} herbs with evidence</p>
                   </div>
                   <button
                     onClick={() => handleViewResult(entry)}

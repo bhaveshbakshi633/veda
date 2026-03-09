@@ -8,36 +8,37 @@ import WarningBanner from "@/components/WarningBanner";
 import EvidenceDrawer from "@/components/EvidenceDrawer";
 import DoctorCard from "@/components/DoctorCard";
 import DownloadReport from "@/components/DownloadReport";
-// assessment auto-saved server-side in /api/assess — no client-side save needed
 import {
-  BlockedHerbCard,
+  RecommendedHerbCard,
   CautionHerbCard,
-  SafeHerbCard,
+  AvoidHerbCard,
 } from "@/components/HerbCard";
 
-// 1-line plain English summary based on assessment counts
+// plain English summary
 function getSummary(result: RiskAssessment): string {
-  const { blocked_herbs, caution_herbs, safe_herbs } = result;
-  const total = blocked_herbs.length + caution_herbs.length + safe_herbs.length;
+  const { recommended_herbs, caution_herbs, avoid_herbs } = result;
+  const total = recommended_herbs.length + caution_herbs.length + avoid_herbs.length;
 
-  // edge case: no herbs evaluated
   if (total === 0) {
-    return "No herbs were evaluated. Please try a new assessment.";
+    return `No herbs in our database have clinical evidence for ${result.concern_label}. Try selecting a different concern.`;
   }
 
-  if (blocked_herbs.length === 0 && caution_herbs.length === 0) {
-    return `All ${safe_herbs.length} herbs appear safe for your profile. Tap any herb for details.`;
+  if (avoid_herbs.length === 0 && caution_herbs.length === 0) {
+    return `We found ${recommended_herbs.length} herb${recommended_herbs.length > 1 ? "s" : ""} with evidence for ${result.concern_label} that appear safe for your profile.`;
   }
 
-  if (blocked_herbs.length > 0 && caution_herbs.length > 0) {
-    return `${blocked_herbs.length} herb${blocked_herbs.length > 1 ? "s" : ""} not recommended for you, ${caution_herbs.length} need caution. ${safe_herbs.length} appear safe.`;
+  const parts: string[] = [];
+  if (recommended_herbs.length > 0) {
+    parts.push(`${recommended_herbs.length} recommended`);
+  }
+  if (caution_herbs.length > 0) {
+    parts.push(`${caution_herbs.length} usable with caution`);
+  }
+  if (avoid_herbs.length > 0) {
+    parts.push(`${avoid_herbs.length} to avoid`);
   }
 
-  if (blocked_herbs.length > 0) {
-    return `${blocked_herbs.length} herb${blocked_herbs.length > 1 ? "s" : ""} not recommended due to your health profile. ${safe_herbs.length} appear safe.`;
-  }
-
-  return `${caution_herbs.length} herb${caution_herbs.length > 1 ? "s" : ""} need caution with your profile. ${safe_herbs.length} appear safe.`;
+  return `For ${result.concern_label}: ${parts.join(", ")}. Ranked by strength of clinical evidence.`;
 }
 
 export default function ResultsPage() {
@@ -46,10 +47,6 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [showAllBlocked, setShowAllBlocked] = useState(false);
-  const [showAllCaution, setShowAllCaution] = useState(false);
-  const [showAllSafe, setShowAllSafe] = useState(false);
-  const INITIAL_SHOW = 3;
 
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
@@ -74,7 +71,6 @@ export default function ResultsPage() {
     }
   }, [router]);
 
-  // scroll-to-top visibility (P2-3)
   useEffect(() => {
     function handleScroll() {
       setShowScrollTop(window.scrollY > 600);
@@ -85,21 +81,15 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div
-        className="flex items-center justify-center min-h-[50vh]"
-        role="status"
-        aria-live="polite"
-      >
-        <div className="animate-pulse text-gray-400 text-sm">
-          Loading results...
-        </div>
+      <div className="flex items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
+        <div className="animate-pulse text-gray-400 text-sm">Loading results...</div>
       </div>
     );
   }
 
   if (!result) return null;
 
-  // EMERGENCY ESCALATION — full-screen overlay, no herb info
+  // EMERGENCY ESCALATION
   if (result.status === "EMERGENCY_ESCALATION") {
     return (
       <EmergencyOverlay
@@ -109,12 +99,7 @@ export default function ResultsPage() {
     );
   }
 
-  const totalHerbs =
-    result.blocked_herbs.length +
-    result.caution_herbs.length +
-    result.safe_herbs.length;
-
-  // check if doctor card should show (medication interactions present)
+  // check if doctor card should show
   const hasMedInteractions = result.caution_herbs.some((h) =>
     h.cautions.some((c) => c.type === "medication_interaction")
   );
@@ -127,13 +112,16 @@ export default function ResultsPage() {
 
   return (
     <div className="max-w-3xl mx-auto pb-32">
-      {/* 1. Header */}
+      {/* 1. Header — concern-focused */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ayurv-primary mb-1">
-          Your Safety Report
+        <p className="text-sm text-ayurv-primary font-medium mb-1">
+          Personalized for your health profile
+        </p>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">
+          Herbs for {result.concern_label}
         </h1>
         <p className="text-sm text-gray-500">
-          {totalHerbs} herbs evaluated against your health profile
+          {result.total_relevant} herb{result.total_relevant !== 1 ? "s" : ""} with clinical evidence, checked against your conditions & medications
         </p>
       </div>
 
@@ -145,88 +133,80 @@ export default function ResultsPage() {
       {/* 3. Doctor Referral Banner */}
       {result.doctor_referral_suggested && (
         <WarningBanner
-          blockedCount={result.blocked_herbs.length}
+          blockedCount={result.avoid_herbs.length}
           cautionCount={result.caution_herbs.length}
         />
       )}
 
-      {/* 4. Summary Chips */}
-      <div className="flex gap-3 mb-6 flex-wrap">
-        {result.blocked_herbs.length > 0 && (
-          <div className="flex items-center gap-2 bg-risk-red-light border border-risk-red/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-red rounded-full" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-800">
-              {result.blocked_herbs.length} Not Safe
-            </span>
-          </div>
-        )}
-        {result.caution_herbs.length > 0 && (
-          <div className="flex items-center gap-2 bg-risk-amber-light border border-risk-amber/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-amber rounded-full" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-800">
-              {result.caution_herbs.length} Caution
-            </span>
-          </div>
-        )}
-        {result.safe_herbs.length > 0 && (
-          <div className="flex items-center gap-2 bg-risk-green-light border border-risk-green/20 rounded-lg px-3 py-2">
-            <span className="w-3 h-3 bg-risk-green rounded-full" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-800">
-              {result.safe_herbs.length} Safe
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* 5. Doctor Interaction Summary Card */}
-      {showDoctorCard && <DoctorCard result={result} />}
-
-      {/* 6. BLOCKED HERBS (RED) */}
-      {result.blocked_herbs.length > 0 && (
-        <section className="mb-8" aria-labelledby="blocked-heading">
-          <h2
-            id="blocked-heading"
-            className="text-lg font-semibold text-risk-red mb-3 flex items-center gap-2"
+      {/* 4. NO MATCHES state */}
+      {result.status === "NO_MATCHES" && (
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center mb-8">
+          <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">
+            No herbs found for {result.concern_label}
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Our database doesn&apos;t have clinical evidence linking herbs to this specific concern yet.
+          </p>
+          <button
+            onClick={() => {
+              sessionStorage.removeItem("ayurv_result");
+              router.push("/intake");
+            }}
+            className="px-6 py-2.5 bg-ayurv-primary text-white rounded-xl text-sm font-semibold hover:bg-ayurv-secondary transition-colors"
           >
-            <span className="w-3 h-3 bg-risk-red rounded-full" aria-hidden="true" />
-            Not Safe For You
+            Try a Different Concern
+          </button>
+        </div>
+      )}
+
+      {/* 5. RECOMMENDED HERBS (GREEN — top picks) */}
+      {result.recommended_herbs.length > 0 && (
+        <section className="mb-8" aria-labelledby="recommended-heading">
+          <h2
+            id="recommended-heading"
+            className="text-lg font-semibold text-risk-green mb-1 flex items-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+            </svg>
+            Recommended For You
           </h2>
           <p className="text-xs text-gray-500 mb-3">
-            These herbs have known risks with your conditions or medications. We
-            do not show dosage for blocked herbs.
+            Safe for your profile, ranked by strength of clinical evidence for {result.concern_label.toLowerCase()}.
           </p>
           <div className="space-y-3">
-            {(showAllBlocked ? result.blocked_herbs : result.blocked_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
-              <BlockedHerbCard key={herb.herb_id} herb={herb} />
+            {result.recommended_herbs.map((herb, i) => (
+              <RecommendedHerbCard
+                key={herb.herb_id}
+                herb={herb}
+                rank={i + 1}
+                onEvidenceClick={handleEvidenceClick}
+              />
             ))}
           </div>
-          {!showAllBlocked && result.blocked_herbs.length > INITIAL_SHOW && (
-            <button
-              onClick={() => setShowAllBlocked(true)}
-              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-red border border-risk-red/20 rounded-xl hover:bg-risk-red-light transition-colors"
-            >
-              Show {result.blocked_herbs.length - INITIAL_SHOW} more blocked herb{result.blocked_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
-            </button>
-          )}
         </section>
       )}
 
-      {/* 7. CAUTION HERBS (YELLOW) */}
+      {/* 6. CAUTION HERBS (YELLOW) */}
       {result.caution_herbs.length > 0 && (
         <section className="mb-8" aria-labelledby="caution-heading">
           <h2
             id="caution-heading"
-            className="text-lg font-semibold text-risk-amber mb-3 flex items-center gap-2"
+            className="text-lg font-semibold text-risk-amber mb-1 flex items-center gap-2"
           >
-            <span className="w-3 h-3 bg-risk-amber rounded-full" aria-hidden="true" />
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
             Use With Doctor Guidance
           </h2>
           <p className="text-xs text-gray-500 mb-3">
-            These herbs may interact with your profile. Read each warning.
-            Discuss with your doctor before use.
+            Evidence exists for your concern, but these herbs have warnings for your profile. Discuss with your doctor.
           </p>
           <div className="space-y-3">
-            {(showAllCaution ? result.caution_herbs : result.caution_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
+            {result.caution_herbs.map((herb) => (
               <CautionHerbCard
                 key={herb.herb_id}
                 herb={herb}
@@ -234,52 +214,36 @@ export default function ResultsPage() {
               />
             ))}
           </div>
-          {!showAllCaution && result.caution_herbs.length > INITIAL_SHOW && (
-            <button
-              onClick={() => setShowAllCaution(true)}
-              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-amber border border-risk-amber/20 rounded-xl hover:bg-risk-amber-light transition-colors"
-            >
-              Show {result.caution_herbs.length - INITIAL_SHOW} more caution herb{result.caution_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
-            </button>
-          )}
         </section>
       )}
 
-      {/* 8. SAFE HERBS (GREEN) */}
-      {result.safe_herbs.length > 0 && (
-        <section className="mb-8" aria-labelledby="safe-heading">
+      {/* 7. AVOID HERBS (RED) */}
+      {result.avoid_herbs.length > 0 && (
+        <section className="mb-8" aria-labelledby="avoid-heading">
           <h2
-            id="safe-heading"
-            className="text-lg font-semibold text-risk-green mb-3 flex items-center gap-2"
+            id="avoid-heading"
+            className="text-lg font-semibold text-risk-red mb-1 flex items-center gap-2"
           >
-            <span className="w-3 h-3 bg-risk-green rounded-full" aria-hidden="true" />
-            Lower Risk For Your Profile
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            Not Safe For You
           </h2>
           <p className="text-xs text-gray-500 mb-3">
-            No known contraindications for your profile. Sorted by strength of
-            clinical evidence.
+            These herbs could help with {result.concern_label.toLowerCase()} but conflict with your health profile.
           </p>
           <div className="space-y-3">
-            {(showAllSafe ? result.safe_herbs : result.safe_herbs.slice(0, INITIAL_SHOW)).map((herb) => (
-              <SafeHerbCard
-                key={herb.herb_id}
-                herb={herb}
-                onEvidenceClick={handleEvidenceClick}
-              />
+            {result.avoid_herbs.map((herb) => (
+              <AvoidHerbCard key={herb.herb_id} herb={herb} />
             ))}
           </div>
-          {!showAllSafe && result.safe_herbs.length > INITIAL_SHOW && (
-            <button
-              onClick={() => setShowAllSafe(true)}
-              className="mt-3 w-full py-2.5 text-sm font-medium text-risk-green border border-risk-green/20 rounded-xl hover:bg-risk-green-light transition-colors"
-            >
-              Show {result.safe_herbs.length - INITIAL_SHOW} more safe herb{result.safe_herbs.length - INITIAL_SHOW > 1 ? "s" : ""}
-            </button>
-          )}
         </section>
       )}
 
-      {/* 9. Disclaimer + New Assessment */}
+      {/* 8. Doctor Interaction Summary Card */}
+      {showDoctorCard && <DoctorCard result={result} />}
+
+      {/* 9. Disclaimer + Actions */}
       <div className="border-t border-gray-200 pt-6 mt-8">
         <p className="text-xs text-gray-400 mb-4">{result.disclaimer}</p>
         <div className="flex gap-3 flex-wrap">
@@ -305,26 +269,14 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Floating Chat Button — above footer */}
+      {/* Floating Chat Button */}
       <button
         onClick={() => router.push("/chat")}
         className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 bg-ayurv-primary text-white rounded-full w-12 h-12 sm:w-14 sm:h-14 shadow-lg flex items-center justify-center hover:bg-ayurv-secondary transition-colors z-40"
         aria-label="Chat with consultant"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-          className="w-6 h-6"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-          />
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
         </svg>
       </button>
 
@@ -335,25 +287,13 @@ export default function ResultsPage() {
           className="fixed bottom-16 left-4 sm:bottom-20 sm:left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
           aria-label="Scroll to top"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-            stroke="currentColor"
-            className="w-5 h-5"
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4.5 15.75l7.5-7.5 7.5 7.5"
-            />
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
           </svg>
         </button>
       )}
 
-      {/* Evidence Drawer — always mounted for animation support */}
+      {/* Evidence Drawer */}
       <EvidenceDrawer
         open={!!drawerHerb}
         onClose={() => setDrawerHerb(null)}

@@ -1,19 +1,22 @@
 // ============================================
-// AYURV RISK ENGINE — DETERMINISTIC PIPELINE
+// AYURV RECOMMENDATION ENGINE — DETERMINISTIC PIPELINE
 // ============================================
-// Pipeline: Validate → Red Flags → Block → Caution Score → Evidence Rank → Output
+// Pipeline: Validate → Red Flags → Filter by Concern → Safety Pipeline → Build Recommendations
 // No AI reasoning. Pure deterministic logic.
 
 import { getServiceClient } from "@/lib/supabase";
 import { intakeSchema, deriveAgeGroup } from "@/lib/validation/intakeSchema";
 import { mapConditionToDbId, mapMedicationToDbId } from "@/lib/mappings";
+import { CONCERN_LABELS } from "@/lib/constants";
 import type {
   IntakeData,
   RiskAssessment,
+  RecommendedHerb,
+  CautionRecommendation,
+  AvoidRecommendation,
   BlockedHerb,
   CautionHerb,
   CautionEntry,
-  SafeHerb,
   AuditEntry,
   HerbRow,
   HerbConditionRiskRow,
@@ -24,6 +27,7 @@ import type {
   EvidenceGrade,
   InteractionSeverity,
   AgeGroup,
+  SymptomPrimary,
 } from "@/lib/types";
 
 // ============================================
@@ -647,111 +651,101 @@ export function calculateCautionScore(
 }
 
 // ============================================
-// STEP 5: RANK BY EVIDENCE
+// STEP 5: BUILD PERSONALIZED RECOMMENDATIONS
 // ============================================
 
 function getBestEvidenceGrade(
-  herbId: string,
-  evidenceClaims: EvidenceClaimRow[],
-  symptomPrimary: string
+  claims: EvidenceClaimRow[]
 ): EvidenceGrade | null {
-  const matching = evidenceClaims.filter(
-    (c) => c.herb_id === herbId && c.symptom_tags.includes(symptomPrimary)
-  );
-
-  if (matching.length === 0) return null;
-
-  // Return highest grade
-  matching.sort(
+  if (claims.length === 0) return null;
+  const sorted = [...claims].sort(
     (a, b) =>
       (EVIDENCE_GRADE_RANK[b.evidence_grade] ?? 0) -
       (EVIDENCE_GRADE_RANK[a.evidence_grade] ?? 0)
   );
-
-  return matching[0].evidence_grade;
+  return sorted[0].evidence_grade;
 }
 
-export function rankByEvidence(
-  allHerbs: HerbRow[],
-  safeHerbIds: string[],
-  cautionHerbs: CautionHerb[],
-  evidenceClaims: EvidenceClaimRow[],
-  symptomPrimary: string
-): {
-  safeHerbs: SafeHerb[];
-  rankedCautionHerbs: CautionHerb[];
-  auditEntries: AuditEntry[];
-} {
-  const auditEntries: AuditEntry[] = [];
+function buildRelevanceSummary(claims: EvidenceClaimRow[]): string {
+  if (claims.length === 0) return "No specific evidence for this concern.";
+  const best = [...claims].sort(
+    (a, b) =>
+      (EVIDENCE_GRADE_RANK[b.evidence_grade] ?? 0) -
+      (EVIDENCE_GRADE_RANK[a.evidence_grade] ?? 0)
+  )[0];
+  return `${best.claim} (Grade ${best.evidence_grade})`;
+}
 
-  // Build safe herbs list ranked by evidence
-  const safeHerbs: SafeHerb[] = safeHerbIds
+export function buildRecommendations(
+  intake: IntakeData,
+  allBlocked: BlockedHerb[],
+  cautionHerbs: CautionHerb[],
+  safeHerbIds: string[],
+  allHerbs: HerbRow[],
+  claimsPerHerb: Map<string, EvidenceClaimRow[]>,
+  allAuditEntries: AuditEntry[]
+): RiskAssessment {
+  const concern = intake.symptom_primary;
+  const concernLabel = CONCERN_LABELS[concern as SymptomPrimary] || concern.replace(/_/g, " ");
+
+  // build recommended herbs (safe + have evidence for concern)
+  const recommended: RecommendedHerb[] = safeHerbIds
     .map((id) => {
       const herb = allHerbs.find((h) => h.id === id)!;
-      const grade = getBestEvidenceGrade(id, evidenceClaims, symptomPrimary);
+      const claims = claimsPerHerb.get(id) ?? [];
       return {
         herb_id: id,
         herb_name: herb.names.english,
-        evidence_grade: grade,
+        evidence_grade: getBestEvidenceGrade(claims),
+        matching_claims: claims,
+        relevance_summary: buildRelevanceSummary(claims),
+        safety_note: "No known contraindications for your health profile.",
         dosage: herb.dosage_ranges,
       };
     })
     .sort((a, b) => {
-      const gradeA = a.evidence_grade
-        ? (EVIDENCE_GRADE_RANK[a.evidence_grade] ?? 0)
-        : 0;
-      const gradeB = b.evidence_grade
-        ? (EVIDENCE_GRADE_RANK[b.evidence_grade] ?? 0)
-        : 0;
-      return gradeB - gradeA; // Best evidence first
+      const ga = a.evidence_grade ? (EVIDENCE_GRADE_RANK[a.evidence_grade] ?? 0) : 0;
+      const gb = b.evidence_grade ? (EVIDENCE_GRADE_RANK[b.evidence_grade] ?? 0) : 0;
+      return gb - ga;
     });
 
-  // Enrich caution herbs with evidence grade
-  const rankedCautionHerbs = cautionHerbs.map((ch) => ({
-    ...ch,
-    evidence_grade: getBestEvidenceGrade(
-      ch.herb_id,
-      evidenceClaims,
-      symptomPrimary
-    ),
-  }));
+  // build caution recommendations
+  const caution: CautionRecommendation[] = cautionHerbs
+    .map((ch) => {
+      const claims = claimsPerHerb.get(ch.herb_id) ?? [];
+      const cautionTypes = ch.cautions.map((c) => c.explanation).join("; ");
+      return {
+        ...ch,
+        evidence_grade: getBestEvidenceGrade(claims),
+        matching_claims: claims,
+        relevance_summary: buildRelevanceSummary(claims),
+        safety_note: `Requires caution: ${cautionTypes}`,
+      };
+    })
+    .sort((a, b) => a.caution_score - b.caution_score);
 
-  auditEntries.push({
-    event_type: "EVIDENCE_RANKING",
-    event_data: {
-      symptom_primary: symptomPrimary,
-      safe_count: safeHerbs.length,
-      safe_with_evidence: safeHerbs.filter((h) => h.evidence_grade !== null)
-        .length,
-      caution_count: rankedCautionHerbs.length,
-      caution_with_evidence: rankedCautionHerbs.filter(
-        (h) => h.evidence_grade !== null
-      ).length,
-    },
+  // build avoid list (blocked herbs that had evidence for this concern)
+  const avoid: AvoidRecommendation[] = allBlocked.map((b) => {
+    const claims = claimsPerHerb.get(b.herb_id) ?? [];
+    return {
+      herb_id: b.herb_id,
+      herb_name: b.herb_name,
+      reason: b.reason,
+      trigger: b.trigger,
+      trigger_type: b.trigger_type,
+      matching_claims: claims,
+      relevance_summary: claims.length > 0
+        ? `Has ${buildRelevanceSummary(claims)} — but not safe for you.`
+        : "Not safe for your health profile.",
+    };
   });
 
-  return { safeHerbs, rankedCautionHerbs, auditEntries };
-}
+  const totalRelevant = recommended.length + caution.length + avoid.length;
 
-// ============================================
-// STEP 6: GENERATE OUTPUT
-// ============================================
-
-export function generateOutput(
-  intake: IntakeData,
-  blocked: BlockedHerb[],
-  cautionHerbs: CautionHerb[],
-  safeHerbs: SafeHerb[],
-  allAuditEntries: AuditEntry[]
-): RiskAssessment {
-  // Doctor referral suggested if:
-  // - Any herbs are blocked
-  // - Any caution herb has a high combined score (>=15)
-  // - User reports severe symptoms
-  // - Chronic/long-duration symptoms
+  // doctor referral
   const doctorSuggested =
-    blocked.length > 0 ||
-    cautionHerbs.some((h) => h.caution_score >= 15) ||
+    avoid.length > 0 ||
+    caution.some((h) => h.caution_score >= 15) ||
     intake.symptom_severity === "severe" ||
     ["chronic_ongoing", "over_6_months"].includes(intake.symptom_duration);
 
@@ -759,9 +753,12 @@ export function generateOutput(
     status: "COMPLETE",
     session_id: intake.session_id,
     disclaimer: DISCLAIMER,
-    blocked_herbs: blocked,
-    caution_herbs: cautionHerbs,
-    safe_herbs: safeHerbs,
+    concern,
+    concern_label: concernLabel,
+    recommended_herbs: recommended,
+    caution_herbs: caution,
+    avoid_herbs: avoid,
+    total_relevant: totalRelevant,
     doctor_referral_suggested: doctorSuggested,
     audit_trail: allAuditEntries,
   };
@@ -781,9 +778,12 @@ export async function runAssessment(
       status: "ERROR",
       session_id: "",
       disclaimer: DISCLAIMER,
-      blocked_herbs: [],
+      concern: "",
+      concern_label: "",
+      recommended_herbs: [],
       caution_herbs: [],
-      safe_herbs: [],
+      avoid_herbs: [],
+      total_relevant: 0,
       doctor_referral_suggested: false,
       audit_trail: [
         {
@@ -795,6 +795,8 @@ export async function runAssessment(
   }
 
   const intake = validation.data;
+  const concern = intake.symptom_primary;
+  const concernLabel = CONCERN_LABELS[concern as SymptomPrimary] || concern.replace(/_/g, " ");
   const allAudit: AuditEntry[] = [
     {
       event_type: "ASSESSMENT_STARTED",
@@ -803,10 +805,9 @@ export async function runAssessment(
         age_group: intake.age_group,
         sex: intake.sex,
         pregnancy_status: intake.pregnancy_status,
-        conditions_count: intake.chronic_conditions.filter((c) => c !== "none")
-          .length,
+        conditions_count: intake.chronic_conditions.filter((c) => c !== "none").length,
         medications_count: intake.medications.filter((m) => m !== "none").length,
-        symptom_primary: intake.symptom_primary,
+        symptom_primary: concern,
         symptom_severity: intake.symptom_severity,
       },
     },
@@ -819,156 +820,132 @@ export async function runAssessment(
   if (redFlagResult.triggered) {
     allAudit.push({
       event_type: "EMERGENCY_ESCALATION",
-      event_data: {
-        flags: redFlagResult.flags,
-        message_count: redFlagResult.messages.length,
-      },
+      event_data: { flags: redFlagResult.flags, message_count: redFlagResult.messages.length },
     });
-
     return {
       status: "EMERGENCY_ESCALATION",
       session_id: intake.session_id,
       disclaimer: DISCLAIMER,
+      concern,
+      concern_label: concernLabel,
       emergency_message: redFlagResult.messages.join(" "),
       red_flags_triggered: redFlagResult.flags,
-      blocked_herbs: [],
+      recommended_herbs: [],
       caution_herbs: [],
-      safe_herbs: [],
+      avoid_herbs: [],
+      total_relevant: 0,
       doctor_referral_suggested: true,
       audit_trail: allAudit,
     };
   }
 
   // Map intake values to DB IDs
-  const conditionIds = mapConditionsToDbIds(
-    intake.chronic_conditions,
-    intake.pregnancy_status
-  );
+  const conditionIds = mapConditionsToDbIds(intake.chronic_conditions, intake.pregnancy_status);
   const medicationIds = mapMedicationsToDbIds(intake.medications);
 
   allAudit.push({
     event_type: "ID_MAPPING_COMPLETE",
-    event_data: {
-      condition_ids: conditionIds,
-      medication_ids: medicationIds,
-    },
+    event_data: { condition_ids: conditionIds, medication_ids: medicationIds },
   });
 
-  // Query database (parallel) — includes new safety tables
+  // Query database (parallel)
   const db = getServiceClient();
 
-  const [herbsRes, condRisksRes, medInteractionsRes, evidenceRes, herbHerbRes, ageRestrictionsRes] =
+  // Step 3: Filter by concern — only fetch herbs with evidence for user's concern
+  // For "other" or "general_wellness", fetch ALL herbs (fallback to full evaluation)
+  const isGenericConcern = concern === "other" || concern === "general_wellness";
+
+  const [evidenceRes, condRisksRes, medInteractionsRes, herbHerbRes, ageRestrictionsRes] =
     await Promise.all([
-      db.from("herbs").select("*"),
+      isGenericConcern
+        ? db.from("evidence_claims").select("*")
+        : db.from("evidence_claims").select("*").contains("symptom_tags", [concern]),
       conditionIds.length > 0
-        ? db
-            .from("herb_condition_risks")
-            .select("*")
-            .in("condition_id", conditionIds)
+        ? db.from("herb_condition_risks").select("*").in("condition_id", conditionIds)
         : Promise.resolve({ data: [] as HerbConditionRiskRow[], error: null }),
       medicationIds.length > 0
-        ? db
-            .from("herb_medication_interactions")
-            .select("*")
-            .in("medication_id", medicationIds)
-        : Promise.resolve({
-            data: [] as HerbMedicationInteractionRow[],
-            error: null,
-          }),
-      db.from("evidence_claims").select("*"),
-      // herb-herb interactions — only needed if user has current herbs
+        ? db.from("herb_medication_interactions").select("*").in("medication_id", medicationIds)
+        : Promise.resolve({ data: [] as HerbMedicationInteractionRow[], error: null }),
       intake.current_herbs.length > 0
         ? db.from("herb_herb_interactions").select("*")
         : Promise.resolve({ data: [] as HerbHerbInteractionRow[], error: null }),
-      // age restrictions — always query
       db.from("herb_age_restrictions").select("*").eq("age_group", intake.age_group),
     ]);
 
-  if (herbsRes.error)
-    throw new Error(`DB error (herbs): ${herbsRes.error.message}`);
-  if (condRisksRes.error)
-    throw new Error(
-      `DB error (condition_risks): ${condRisksRes.error.message}`
-    );
-  if (medInteractionsRes.error)
-    throw new Error(
-      `DB error (medication_interactions): ${medInteractionsRes.error.message}`
-    );
-  if (evidenceRes.error)
-    throw new Error(`DB error (evidence): ${evidenceRes.error.message}`);
-  if (herbHerbRes.error)
-    throw new Error(`DB error (herb_herb_interactions): ${herbHerbRes.error.message}`);
-  if (ageRestrictionsRes.error)
-    throw new Error(`DB error (herb_age_restrictions): ${ageRestrictionsRes.error.message}`);
+  if (evidenceRes.error) throw new Error(`DB error (evidence): ${evidenceRes.error.message}`);
+  if (condRisksRes.error) throw new Error(`DB error (condition_risks): ${condRisksRes.error.message}`);
+  if (medInteractionsRes.error) throw new Error(`DB error (medication_interactions): ${medInteractionsRes.error.message}`);
+  if (herbHerbRes.error) throw new Error(`DB error (herb_herb_interactions): ${herbHerbRes.error.message}`);
+  if (ageRestrictionsRes.error) throw new Error(`DB error (herb_age_restrictions): ${ageRestrictionsRes.error.message}`);
 
-  const herbs = herbsRes.data as HerbRow[];
+  const matchingEvidence = (evidenceRes.data ?? []) as EvidenceClaimRow[];
   const condRisks = (condRisksRes.data ?? []) as HerbConditionRiskRow[];
-  const medInteractions = (medInteractionsRes.data ??
-    []) as HerbMedicationInteractionRow[];
-  const evidence = (evidenceRes.data ?? []) as EvidenceClaimRow[];
+  const medInteractions = (medInteractionsRes.data ?? []) as HerbMedicationInteractionRow[];
   const herbHerbInteractions = (herbHerbRes.data ?? []) as HerbHerbInteractionRow[];
   const ageRestrictions = (ageRestrictionsRes.data ?? []) as HerbAgeRestrictionRow[];
 
+  // get distinct herb IDs that have evidence for this concern
+  const relevantHerbIds = [...new Set(matchingEvidence.map((e) => e.herb_id))];
+
+  // build claims-per-herb map
+  const claimsPerHerb = new Map<string, EvidenceClaimRow[]>();
+  for (const claim of matchingEvidence) {
+    const existing = claimsPerHerb.get(claim.herb_id) ?? [];
+    existing.push(claim);
+    claimsPerHerb.set(claim.herb_id, existing);
+  }
+
+  // NO_MATCHES: no herbs have evidence for this concern
+  if (relevantHerbIds.length === 0) {
+    allAudit.push({
+      event_type: "NO_EVIDENCE_MATCH",
+      event_data: { concern, herbs_checked: 0 },
+    });
+    return {
+      status: "NO_MATCHES",
+      session_id: intake.session_id,
+      disclaimer: DISCLAIMER,
+      concern,
+      concern_label: concernLabel,
+      recommended_herbs: [],
+      caution_herbs: [],
+      avoid_herbs: [],
+      total_relevant: 0,
+      doctor_referral_suggested: false,
+      audit_trail: allAudit,
+    };
+  }
+
+  // fetch only the relevant herbs
+  const herbsRes = await db.from("herbs").select("*").in("id", relevantHerbIds);
+  if (herbsRes.error) throw new Error(`DB error (herbs): ${herbsRes.error.message}`);
+  const herbs = herbsRes.data as HerbRow[];
+
   allAudit.push({
-    event_type: "DB_QUERY_COMPLETE",
+    event_type: "CONCERN_FILTER_COMPLETE",
     event_data: {
-      herbs_count: herbs.length,
-      condition_risks_count: condRisks.length,
-      medication_interactions_count: medInteractions.length,
-      evidence_claims_count: evidence.length,
-      herb_herb_interactions_count: herbHerbInteractions.length,
-      age_restrictions_count: ageRestrictions.length,
+      concern,
+      relevant_herbs: relevantHerbIds.length,
+      evidence_claims: matchingEvidence.length,
     },
   });
 
-  // Step 3: Filter blocked herbs (conditions + critical medication interactions)
-  const blockResult = filterBlockedHerbs(
-    herbs,
-    condRisks,
-    medInteractions,
-    conditionIds,
-    medicationIds
-  );
+  // Step 4: Safety pipeline on relevant herbs only
+  const blockResult = filterBlockedHerbs(herbs, condRisks, medInteractions, conditionIds, medicationIds);
   allAudit.push(...blockResult.auditEntries);
 
-  // Step 3B: Age-based restrictions
-  const ageResult = applyAgeRestrictions(
-    blockResult.remaining,
-    ageRestrictions,
-    intake.age_group
-  );
+  const ageResult = applyAgeRestrictions(blockResult.remaining, ageRestrictions, intake.age_group);
   allAudit.push(...ageResult.auditEntries);
 
-  // Step 3C: Herb-herb interaction check (user's current herbs vs remaining)
-  const herbHerbResult = checkHerbHerbInteractions(
-    ageResult.remaining,
-    herbHerbInteractions,
-    intake.current_herbs
-  );
+  const herbHerbResult = checkHerbHerbInteractions(ageResult.remaining, herbHerbInteractions, intake.current_herbs);
   allAudit.push(...herbHerbResult.auditEntries);
 
-  // Step 3D: Duration restriction check
-  const durationResult = checkDurationRestrictions(
-    herbHerbResult.remaining,
-    intake.symptom_duration
-  );
+  const durationResult = checkDurationRestrictions(herbHerbResult.remaining, intake.symptom_duration);
   allAudit.push(...durationResult.auditEntries);
 
-  // merge all blocked herbs from all steps
-  const allBlocked = [
-    ...blockResult.blocked,
-    ...ageResult.blocked,
-    ...herbHerbResult.blocked,
-  ];
+  const allBlocked = [...blockResult.blocked, ...ageResult.blocked, ...herbHerbResult.blocked];
+  const allExtraCautions = [...ageResult.cautions, ...herbHerbResult.cautions, ...durationResult.cautions];
 
-  // merge all extra caution entries from age/herb-herb/duration checks
-  const allExtraCautions = [
-    ...ageResult.cautions,
-    ...herbHerbResult.cautions,
-    ...durationResult.cautions,
-  ];
-
-  // Step 4: Calculate caution scores on remaining herbs (with extra cautions merged in)
   const cautionResult = calculateCautionScore(
     herbHerbResult.remaining,
     condRisks,
@@ -979,31 +956,25 @@ export async function runAssessment(
   );
   allAudit.push(...cautionResult.auditEntries);
 
-  // Step 5: Rank by evidence
-  const evidenceResult = rankByEvidence(
-    herbs,
-    cautionResult.safeHerbIds,
-    cautionResult.cautionHerbs,
-    evidence,
-    intake.symptom_primary
-  );
-  allAudit.push(...evidenceResult.auditEntries);
-
-  // Step 6: Generate output
-  const result = generateOutput(
+  // Step 5: Build personalized recommendations
+  const result = buildRecommendations(
     intake,
     allBlocked,
-    evidenceResult.rankedCautionHerbs,
-    evidenceResult.safeHerbs,
+    cautionResult.cautionHerbs,
+    cautionResult.safeHerbIds,
+    herbs,
+    claimsPerHerb,
     allAudit
   );
 
   allAudit.push({
     event_type: "ASSESSMENT_COMPLETE",
     event_data: {
-      blocked_count: result.blocked_herbs.length,
+      concern,
+      recommended_count: result.recommended_herbs.length,
       caution_count: result.caution_herbs.length,
-      safe_count: result.safe_herbs.length,
+      avoid_count: result.avoid_herbs.length,
+      total_relevant: result.total_relevant,
       doctor_referral: result.doctor_referral_suggested,
     },
   });

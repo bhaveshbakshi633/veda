@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import type {
-  BlockedHerb,
-  CautionHerb,
-  SafeHerb,
+  RecommendedHerb,
+  CautionRecommendation,
+  AvoidRecommendation,
   EvidenceGrade,
   InteractionSeverity,
 } from "@/lib/types";
@@ -21,13 +21,7 @@ function EvidenceBadge({
   grade: EvidenceGrade | null;
   onClick?: () => void;
 }) {
-  if (!grade) {
-    return (
-      <span className="evidence-badge bg-gray-100 text-gray-400">
-        No match
-      </span>
-    );
-  }
+  if (!grade) return null;
 
   if (onClick) {
     return (
@@ -83,7 +77,7 @@ function DosageInfo({
   dosage,
   prefix,
 }: {
-  dosage: SafeHerb["dosage"] | CautionHerb["dosage"];
+  dosage: RecommendedHerb["dosage"];
   prefix?: string;
 }) {
   return (
@@ -92,7 +86,7 @@ function DosageInfo({
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
         </svg>
-        {prefix || "Educational Dosage Information"}
+        {prefix || "Dosage Information"}
       </p>
       <p className="text-xs text-gray-400 italic mb-2.5">{dosage.disclaimer}</p>
       <div className="space-y-2">
@@ -117,72 +111,95 @@ function DosageInfo({
 }
 
 // ============================================
-// BLOCKED HERB CARD (RED)
+// RECOMMENDED HERB CARD (GREEN — top picks)
 // ============================================
 
-export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
-  const [expanded, setExpanded] = useState(false);
-
-  // 1-line summary for collapsed state
-  const triggerLabel =
-    herb.trigger_type === "pregnancy"
-      ? "Pregnancy/Reproductive status"
-      : herb.trigger_type === "medication"
-        ? "Drug interaction"
-        : "Health condition";
+export function RecommendedHerbCard({
+  herb,
+  rank,
+  onEvidenceClick,
+}: {
+  herb: RecommendedHerb;
+  rank: number;
+  onEvidenceClick?: (herbId: string, herbName: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(rank === 1); // auto-expand #1
 
   return (
-    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-red/20 overflow-hidden card-hover">
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-red rounded-l-2xl" />
+    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-green/20 overflow-hidden card-hover">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-green rounded-l-2xl" />
 
-      {/* collapsed header — always visible */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 flex items-center justify-between gap-3"
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3 min-w-0 flex-wrap">
+          {rank <= 3 && (
+            <span className="w-7 h-7 rounded-full bg-risk-green text-white text-xs font-bold flex items-center justify-center shrink-0">
+              {rank}
+            </span>
+          )}
           <h3 className="text-base font-bold text-gray-900 truncate">
             {herb.herb_name}
           </h3>
-          <span className="risk-badge-red shrink-0 shadow-sm shadow-risk-red/20 text-[10px]">AVOID</span>
+          <EvidenceBadge grade={herb.evidence_grade} />
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-xs text-gray-400 hidden sm:inline">{triggerLabel}</span>
-          <svg
-            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
+        <svg
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
-      {/* expanded details */}
       {expanded && (
         <div className="pl-5 pr-5 pb-5 sm:pl-6 sm:pr-6 animate-fade-in">
-          <div className="bg-risk-red-light rounded-xl p-3.5 mb-3">
-            <p className="text-sm text-gray-700 leading-relaxed">
-              <span className="font-semibold text-risk-red">Why: </span>
-              {herb.reason}
+          {/* why this herb */}
+          <div className="bg-risk-green-light rounded-xl p-4 mb-3">
+            <p className="text-[11px] font-semibold text-risk-green uppercase tracking-wider mb-2">
+              Why This Herb
             </p>
+            {herb.matching_claims.length > 0 ? (
+              <div className="space-y-2">
+                {herb.matching_claims.slice(0, 3).map((claim, i) => (
+                  <div key={i} className="text-sm text-gray-700">
+                    <span className="font-medium">{claim.claim}</span>
+                    <span className="text-gray-500"> — Grade {claim.evidence_grade}</span>
+                    {claim.summary && (
+                      <p className="text-xs text-gray-500 mt-0.5">{claim.summary}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-600">{herb.relevance_summary}</p>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-full">
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
-              Trigger: {triggerLabel}
-            </span>
-          </div>
-
-          <p className="text-xs text-risk-red font-semibold mt-3 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+          {/* safety */}
+          <div className="flex items-center gap-2 mb-3 text-xs">
+            <svg className="w-4 h-4 text-risk-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
             </svg>
-            Discuss alternatives with your doctor
-          </p>
+            <span className="text-risk-green font-medium">{herb.safety_note}</span>
+          </div>
+
+          {/* evidence details button */}
+          {onEvidenceClick && herb.evidence_grade && (
+            <button
+              type="button"
+              onClick={() => onEvidenceClick(herb.herb_id, herb.herb_name)}
+              className="text-xs text-ayurv-primary font-medium hover:underline mb-3 flex items-center gap-1"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v16.5c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9zm3.75 11.625a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+              </svg>
+              View all evidence & references
+            </button>
+          )}
+
+          <DosageInfo dosage={herb.dosage} prefix="Recommended dosage range" />
         </div>
       )}
     </div>
@@ -190,14 +207,14 @@ export function BlockedHerbCard({ herb }: { herb: BlockedHerb }) {
 }
 
 // ============================================
-// CAUTION HERB CARD (YELLOW)
+// CAUTION HERB CARD (YELLOW — usable with care)
 // ============================================
 
 export function CautionHerbCard({
   herb,
   onEvidenceClick,
 }: {
-  herb: CautionHerb;
+  herb: CautionRecommendation;
   onEvidenceClick?: (herbId: string, herbName: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -206,7 +223,6 @@ export function CautionHerbCard({
     <div className="relative bg-white rounded-2xl shadow-sm border border-risk-amber/20 overflow-hidden card-hover">
       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-amber rounded-l-2xl" />
 
-      {/* collapsed header */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
@@ -229,9 +245,18 @@ export function CautionHerbCard({
         </svg>
       </button>
 
-      {/* expanded details */}
       {expanded && (
         <div className="pl-5 pr-5 pb-5 sm:pl-6 sm:pr-6 animate-fade-in">
+          {/* why this herb — evidence for concern */}
+          {herb.matching_claims.length > 0 && (
+            <div className="bg-blue-50 rounded-xl p-3.5 mb-3 border border-blue-100">
+              <p className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider mb-1.5">
+                Why This Herb
+              </p>
+              <p className="text-sm text-gray-700">{herb.relevance_summary}</p>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 mb-3">
             <EvidenceBadge
               grade={herb.evidence_grade}
@@ -243,6 +268,7 @@ export function CautionHerbCard({
             />
           </div>
 
+          {/* warnings */}
           <div className="space-y-2.5 mb-3">
             {herb.cautions.map((caution, i) => (
               <div
@@ -276,10 +302,7 @@ export function CautionHerbCard({
             ))}
           </div>
 
-          <DosageInfo
-            dosage={herb.dosage}
-            prefix="Dosage (discuss with doctor first)"
-          />
+          <DosageInfo dosage={herb.dosage} prefix="Dosage (discuss with doctor first)" />
         </div>
       )}
     </div>
@@ -287,73 +310,70 @@ export function CautionHerbCard({
 }
 
 // ============================================
-// SAFE HERB CARD (GREEN)
+// AVOID HERB CARD (RED — blocked)
 // ============================================
 
-export function SafeHerbCard({
-  herb,
-  onEvidenceClick,
-}: {
-  herb: SafeHerb;
-  onEvidenceClick?: (herbId: string, herbName: string) => void;
-}) {
+export function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
   const [expanded, setExpanded] = useState(false);
 
-  return (
-    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-green/20 overflow-hidden card-hover">
-      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-green rounded-l-2xl" />
+  const triggerLabel =
+    herb.trigger_type === "pregnancy"
+      ? "Pregnancy/Reproductive status"
+      : herb.trigger_type === "medication"
+        ? "Drug interaction"
+        : "Health condition";
 
-      {/* collapsed header */}
+  return (
+    <div className="relative bg-white rounded-2xl shadow-sm border border-risk-red/20 overflow-hidden card-hover">
+      <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-risk-red rounded-l-2xl" />
+
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 flex items-center justify-between gap-3"
       >
-        <div className="flex items-center gap-3 min-w-0 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
           <h3 className="text-base font-bold text-gray-900 truncate">
             {herb.herb_name}
           </h3>
-          <span className="risk-badge-green shrink-0 shadow-sm shadow-risk-green/20 text-[10px]">LOWER RISK</span>
-          {herb.evidence_grade && (
-            <span className="text-xs text-gray-400">Grade {herb.evidence_grade}</span>
-          )}
+          <span className="risk-badge-red shrink-0 shadow-sm shadow-risk-red/20 text-[10px]">AVOID</span>
         </div>
-        <svg
-          className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-xs text-gray-400 hidden sm:inline">{triggerLabel}</span>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
       </button>
 
-      {/* expanded details */}
       {expanded && (
         <div className="pl-5 pr-5 pb-5 sm:pl-6 sm:pr-6 animate-fade-in">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs text-gray-500 font-medium">Evidence:</span>
-            <EvidenceBadge
-              grade={herb.evidence_grade}
-              onClick={
-                onEvidenceClick
-                  ? () => onEvidenceClick(herb.herb_id, herb.herb_name)
-                  : undefined
-              }
-            />
+          {/* what user is missing */}
+          {herb.matching_claims.length > 0 && (
+            <div className="bg-gray-50 rounded-xl p-3.5 mb-3 border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">
+                This herb has evidence for your concern:
+              </p>
+              <p className="text-sm text-gray-600 italic">{herb.relevance_summary}</p>
+            </div>
+          )}
+
+          <div className="bg-risk-red-light rounded-xl p-3.5 mb-3">
+            <p className="text-sm text-gray-700 leading-relaxed">
+              <span className="font-semibold text-risk-red">Why not safe: </span>
+              {herb.reason}
+            </p>
           </div>
 
-          {herb.evidence_grade && (
-            <p className="text-xs text-gray-500 leading-relaxed">
-              {GRADE_LABELS[herb.evidence_grade] ||
-                `Grade ${herb.evidence_grade}`}
-            </p>
-          )}
-          {!herb.evidence_grade && (
-            <p className="text-xs text-gray-400 leading-relaxed">
-              No safety concerns identified for your profile. Tap the grade badge above for evidence details.
-            </p>
-          )}
-
-          <DosageInfo dosage={herb.dosage} prefix="Standard dosage range" />
+          <p className="text-xs text-risk-red font-semibold mt-3 flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+            Ask your doctor about safe alternatives for your concern
+          </p>
         </div>
       )}
     </div>

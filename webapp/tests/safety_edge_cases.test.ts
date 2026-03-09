@@ -97,8 +97,8 @@ describe("RED FLAG ESCALATION", () => {
     }));
     expect(result.status).toBe("EMERGENCY_ESCALATION");
     expect(result.emergency_message).toBeDefined();
-    expect(result.blocked_herbs?.length || 0).toBe(0);
-    expect(result.safe_herbs?.length || 0).toBe(0);
+    expect(result.avoid_herbs?.length || 0).toBe(0);
+    expect(result.recommended_herbs?.length || 0).toBe(0);
   });
 
   it("SEC-002: Blood in stool → EMERGENCY_ESCALATION", async () => {
@@ -152,7 +152,7 @@ describe("RED FLAG ESCALATION", () => {
   it("SEC-008: No red flags → COMPLETE status", async () => {
     const result = await assess(makeProfile());
     expect(result.status).toBe("COMPLETE");
-    expect(result.safe_herbs).toBeDefined();
+    expect(result.recommended_herbs).toBeDefined();
   });
 });
 
@@ -168,11 +168,11 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
       chronic_conditions: ["none"],
     }));
     expect(result.status).toBe("COMPLETE");
-    const blocked = result.blocked_herbs?.map((h: {herb_id: string}) => h.herb_id) || [];
-    // Ashwagandha should be blocked for pregnancy
+    const avoidIds = result.avoid_herbs?.map((h: {herb_id: string}) => h.herb_id) || [];
+    // Ashwagandha should be avoided for pregnancy
     // (depends on seed data having this risk entry)
-    if (blocked.includes("herb_ashwagandha")) {
-      expect(blocked).toContain("herb_ashwagandha");
+    if (avoidIds.includes("herb_ashwagandha")) {
+      expect(avoidIds).toContain("herb_ashwagandha");
     }
   });
 
@@ -180,15 +180,15 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
     const result = await assess(makeProfile({
       chronic_conditions: ["liver_disease"],
     }));
-    const blocked = result.blocked_herbs?.map((h: {herb_id: string}) => h.herb_id) || [];
-    expect(blocked).toContain("herb_guduchi");
+    const avoidIds = result.avoid_herbs?.map((h: {herb_id: string}) => h.herb_id) || [];
+    expect(avoidIds).toContain("herb_guduchi");
   });
 
   it("SEC-011: Blocked herbs have NO dosage info", async () => {
     const result = await assess(makeProfile({
       chronic_conditions: ["liver_disease"],
     }));
-    for (const herb of result.blocked_herbs || []) {
+    for (const herb of result.avoid_herbs || []) {
       expect(herb.dosage).toBeUndefined();
       expect(herb.dosage_ranges).toBeUndefined();
     }
@@ -198,7 +198,7 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
     const result = await assess(makeProfile({
       chronic_conditions: ["liver_disease"],
     }));
-    for (const herb of result.blocked_herbs || []) {
+    for (const herb of result.avoid_herbs || []) {
       expect(herb.reason).toBeDefined();
       expect(herb.reason.length).toBeGreaterThan(0);
     }
@@ -208,7 +208,7 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
     const result = await assess(makeProfile({
       chronic_conditions: ["liver_disease"],
     }));
-    for (const herb of result.blocked_herbs || []) {
+    for (const herb of result.avoid_herbs || []) {
       expect(["condition", "medication", "pregnancy"]).toContain(herb.trigger_type);
     }
   });
@@ -220,21 +220,22 @@ describe("BLOCKED HERB ENFORCEMENT", () => {
     }));
     // Should have blocked or caution entries for cardiac herbs
     expect(result.status).toBe("COMPLETE");
+    // concern-filtered: total should match total_relevant
     const allHerbs = [
-      ...(result.blocked_herbs || []),
+      ...(result.avoid_herbs || []),
       ...(result.caution_herbs || []),
-      ...(result.safe_herbs || []),
+      ...(result.recommended_herbs || []),
     ];
-    expect(allHerbs.length).toBe(50); // All 50 herbs should be categorized
+    expect(allHerbs.length).toBe(result.total_relevant);
   });
 
   it("SEC-015: Autoimmune conditions map correctly", async () => {
     const result1 = await assess(makeProfile({ chronic_conditions: ["autoimmune_lupus"] }));
     const result2 = await assess(makeProfile({ chronic_conditions: ["autoimmune_ra"] }));
     // Both should produce same blocking pattern (both map to cond_autoimmune)
-    const blocked1 = (result1.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id).sort();
-    const blocked2 = (result2.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id).sort();
-    expect(blocked1).toEqual(blocked2);
+    const avoid1 = (result1.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id).sort();
+    const avoid2 = (result2.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id).sort();
+    expect(avoid1).toEqual(avoid2);
   });
 
   it("SEC-016: Scheduled surgery blocks blood-thinning herbs", async () => {
@@ -273,20 +274,20 @@ describe("DRUG INTERACTION HANDLING", () => {
     const result = await assess(makeProfile({
       medications: ["warfarin"],
     }));
-    const blockedIds = (result.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    const avoidIds = (result.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     const cautionIds = (result.caution_herbs || []).map((h: {herb_id: string}) => h.herb_id);
-    // At least some herbs should be blocked or cautioned with warfarin
-    expect(blockedIds.length + cautionIds.length).toBeGreaterThan(0);
+    // At least some herbs should be avoided or cautioned with warfarin
+    expect(avoidIds.length + cautionIds.length).toBeGreaterThan(0);
   });
 
   it("SEC-020: Digoxin + arjuna = blocked or caution", async () => {
     const result = await assess(makeProfile({
       medications: ["digoxin"],
     }));
-    const blockedIds = (result.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    const avoidIds = (result.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     const cautionIds = (result.caution_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     // Arjuna has cardiac effects; digoxin is narrow therapeutic index
-    const arjunaHandled = blockedIds.includes("herb_arjuna") || cautionIds.includes("herb_arjuna");
+    const arjunaHandled = avoidIds.includes("herb_arjuna") || cautionIds.includes("herb_arjuna");
     expect(arjunaHandled).toBe(true);
   });
 
@@ -328,10 +329,10 @@ describe("DRUG INTERACTION HANDLING", () => {
     const result = await assess(makeProfile({
       medications: ["immunosuppressant"],
     }));
-    const blockedIds = (result.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    const avoidIds = (result.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     const cautionIds = (result.caution_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     // Guduchi (immunomodulator) should be flagged
-    const guduchiFlagged = blockedIds.includes("herb_guduchi") || cautionIds.includes("herb_guduchi");
+    const guduchiFlagged = avoidIds.includes("herb_guduchi") || cautionIds.includes("herb_guduchi");
     expect(guduchiFlagged).toBe(true);
   });
 
@@ -340,7 +341,7 @@ describe("DRUG INTERACTION HANDLING", () => {
       medications: ["none"],
       chronic_conditions: ["none"],
     }));
-    expect(result.blocked_herbs?.length || 0).toBe(0);
+    expect(result.avoid_herbs?.length || 0).toBe(0);
   });
 
   it("SEC-026: Multiple medications compound caution scores", async () => {
@@ -430,12 +431,14 @@ describe("CAUTION SCORING", () => {
     }
   });
 
-  it("SEC-034: All 50 herbs accounted for in output", async () => {
+  it("SEC-034: All concern-relevant herbs accounted for in output", async () => {
     const result = await assess(makeProfile());
-    const total = (result.blocked_herbs?.length || 0) +
+    const total = (result.avoid_herbs?.length || 0) +
                   (result.caution_herbs?.length || 0) +
-                  (result.safe_herbs?.length || 0);
-    expect(total).toBe(50);
+                  (result.recommended_herbs?.length || 0);
+    // concern-filtered: total matches total_relevant (not all 50)
+    expect(total).toBe(result.total_relevant);
+    expect(total).toBeGreaterThan(0);
   });
 
   it("SEC-035: Mild symptom + no conditions = no referral", async () => {
@@ -445,7 +448,7 @@ describe("CAUTION SCORING", () => {
     }));
     // With no conditions and mild symptoms, should NOT suggest referral
     // (unless other conditions trigger it)
-    if (result.blocked_herbs?.length === 0 && result.caution_herbs?.length === 0) {
+    if (result.avoid_herbs?.length === 0 && result.caution_herbs?.length === 0) {
       expect(result.doctor_referral_suggested).toBe(false);
     }
   });
@@ -455,12 +458,12 @@ describe("CAUTION SCORING", () => {
       chronic_conditions: ["liver_disease"],
       medications: ["warfarin"],
     }));
-    const blockedIds = new Set((result.blocked_herbs || []).map((h: {herb_id: string}) => h.herb_id));
+    const avoidSet = new Set((result.avoid_herbs || []).map((h: {herb_id: string}) => h.herb_id));
     const cautionIds = (result.caution_herbs || []).map((h: {herb_id: string}) => h.herb_id);
-    const safeIds = (result.safe_herbs || []).map((h: {herb_id: string}) => h.herb_id);
-    for (const id of blockedIds) {
+    const recommendedIds = (result.recommended_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    for (const id of avoidSet) {
       expect(cautionIds).not.toContain(id);
-      expect(safeIds).not.toContain(id);
+      expect(recommendedIds).not.toContain(id);
     }
   });
 });
@@ -474,7 +477,7 @@ describe("EVIDENCE RANKING", () => {
     const result = await assess(makeProfile({
       symptom_primary: "stress_anxiety",
     }));
-    const grades = (result.safe_herbs || []).map((h: {evidence_grade: string}) => h.evidence_grade);
+    const grades = (result.recommended_herbs || []).map((h: {evidence_grade: string}) => h.evidence_grade);
     const gradeRank: Record<string, number> = { A: 6, B: 5, "B-C": 4, C: 3, "C-D": 2, D: 1 };
     for (let i = 1; i < grades.length; i++) {
       if (grades[i] && grades[i - 1]) {
@@ -486,7 +489,7 @@ describe("EVIDENCE RANKING", () => {
   it("SEC-038: Evidence grade only uses valid values", async () => {
     const result = await assess(makeProfile());
     const validGrades = new Set(["A", "B", "B-C", "C", "C-D", "D", null]);
-    for (const herb of [...(result.safe_herbs || []), ...(result.caution_herbs || [])]) {
+    for (const herb of [...(result.recommended_herbs || []), ...(result.caution_herbs || [])]) {
       expect(validGrades.has(herb.evidence_grade)).toBe(true);
     }
   });
@@ -496,7 +499,7 @@ describe("EVIDENCE RANKING", () => {
       symptom_primary: "stress_anxiety",
     }));
     // Ashwagandha has Grade B for stress — should rank high
-    const safeIds = (result.safe_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    const safeIds = (result.recommended_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     if (safeIds.includes("herb_ashwagandha")) {
       const idx = safeIds.indexOf("herb_ashwagandha");
       expect(idx).toBeLessThan(5); // Should be in top 5
@@ -507,7 +510,7 @@ describe("EVIDENCE RANKING", () => {
     const result = await assess(makeProfile({
       symptom_primary: "memory_concentration",
     }));
-    const safeIds = (result.safe_herbs || []).map((h: {herb_id: string}) => h.herb_id);
+    const safeIds = (result.recommended_herbs || []).map((h: {herb_id: string}) => h.herb_id);
     if (safeIds.includes("herb_brahmi")) {
       const idx = safeIds.indexOf("herb_brahmi");
       expect(idx).toBeLessThan(5);
@@ -516,7 +519,7 @@ describe("EVIDENCE RANKING", () => {
 
   it("SEC-041: Dosage info present on safe herbs", async () => {
     const result = await assess(makeProfile());
-    for (const herb of result.safe_herbs || []) {
+    for (const herb of result.recommended_herbs || []) {
       expect(herb.dosage).toBeDefined();
     }
   });
@@ -681,8 +684,8 @@ describe("ADVERSARIAL INPUT", () => {
     expect(result.status).toBe("EMERGENCY_ESCALATION");
     expect(result.emergency_message).toBeDefined();
     // Should NOT produce herb results even with all flags
-    expect(result.blocked_herbs?.length || 0).toBe(0);
-    expect(result.safe_herbs?.length || 0).toBe(0);
+    expect(result.avoid_herbs?.length || 0).toBe(0);
+    expect(result.recommended_herbs?.length || 0).toBe(0);
   });
 
   it("ADV-056: Float age rejected", async () => {
@@ -729,10 +732,10 @@ describe("ADVERSARIAL INPUT", () => {
     const duped = await assess(makeProfile({
       chronic_conditions: ["diabetes_type_2", "diabetes_type_2"] as never,
     }));
-    // Duplicates should NOT increase caution scores
-    const singleBlocked = (single.blocked_herbs || []).length;
-    const dupedBlocked = (duped.blocked_herbs || []).length;
-    expect(dupedBlocked).toBe(singleBlocked);
+    // Duplicates should NOT increase avoid count
+    const singleAvoid = (single.avoid_herbs || []).length;
+    const dupedAvoid = (duped.avoid_herbs || []).length;
+    expect(dupedAvoid).toBe(singleAvoid);
   });
 
   it("ADV-060: Emergency escalation blocks ALL herb assessment", async () => {
@@ -743,8 +746,8 @@ describe("ADVERSARIAL INPUT", () => {
     }));
     // Even with complex profile, red flag = NO herb assessment
     expect(result.status).toBe("EMERGENCY_ESCALATION");
-    expect(result.blocked_herbs?.length || 0).toBe(0);
+    expect(result.avoid_herbs?.length || 0).toBe(0);
     expect(result.caution_herbs?.length || 0).toBe(0);
-    expect(result.safe_herbs?.length || 0).toBe(0);
+    expect(result.recommended_herbs?.length || 0).toBe(0);
   });
 });
