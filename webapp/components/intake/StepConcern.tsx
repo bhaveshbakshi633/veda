@@ -1,6 +1,6 @@
 "use client";
 
-import { CONCERN_OPTIONS, GOAL_OPTIONS, type IntakeFormState } from "./constants";
+import { CONCERN_OPTIONS, type IntakeFormState } from "./constants";
 
 interface StepConcernProps {
   form: IntakeFormState;
@@ -93,36 +93,6 @@ export default function StepConcern({ form, setForm, error }: StepConcernProps) 
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-
-        {/* goal */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            What would you like to do?
-          </label>
-          <div className="space-y-2.5">
-            {GOAL_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm((p) => ({ ...p, user_goal: opt.value }))}
-                className={`w-full text-left px-5 py-4 rounded-xl border-2 text-sm transition-all duration-200 ${
-                  form.user_goal === opt.value
-                    ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md shadow-ayurv-primary/15"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5"
-                }`}
-              >
-                <span className="font-semibold">{opt.label}</span>
-                <span
-                  className={`block text-xs mt-0.5 ${
-                    form.user_goal === opt.value ? "text-white/80" : "text-gray-400"
-                  }`}
-                >
-                  {opt.desc}
-                </span>
-              </button>
-            ))}
           </div>
         </div>
 

@@ -81,8 +81,7 @@ export default function IntakePage() {
         return (
           form.symptom_primary !== "" &&
           form.symptom_duration !== "" &&
-          form.symptom_severity !== "" &&
-          form.user_goal !== ""
+          form.symptom_severity !== ""
         );
       default:
         return false;
@@ -107,7 +106,7 @@ export default function IntakePage() {
       symptom_primary: form.symptom_primary,
       symptom_duration: form.symptom_duration,
       symptom_severity: form.symptom_severity,
-      user_goal: form.user_goal,
+      user_goal: form.user_goal || "find_herb_for_concern",
       red_flag_screen: form.red_flags,
       disclaimer_accepted: true as const,
       anonymous_uid: uid,
@@ -143,7 +142,7 @@ export default function IntakePage() {
         }),
       }).catch(() => {});
 
-      router.push("/results");
+      router.push("/chat");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -292,7 +291,7 @@ export default function IntakePage() {
                   Analysing...
                 </span>
               ) : (
-                "Get My Safety Report"
+                "Submit and Chat"
               )}
             </button>
           )}

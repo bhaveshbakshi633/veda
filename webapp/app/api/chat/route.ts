@@ -1,9 +1,10 @@
 // ============================================
 // POST /api/chat — Conversational Agent Endpoint
 // ============================================
-// Uses Ollama (llama3.1:8b) locally. Tools are called deterministically
-// server-side and results are injected as context — the LLM generates
-// the conversational response on top of real, verified data.
+// Uses Ollama (local LLM). Supports streaming (SSE) and non-streaming.
+// Tools are called deterministically server-side and results are
+// injected as context — the LLM generates conversational responses
+// on top of real, verified data.
 
 import { NextRequest, NextResponse } from "next/server";
 import { SYSTEM_PROMPT } from "@/lib/agent/systemPrompt";
@@ -13,7 +14,6 @@ import {
   getHerbData,
   getEvidenceClaims,
   logAudit,
-  resolveHerbId,
 } from "@/lib/agent/toolHandlers";
 import type { UserProfile } from "@/lib/agent/toolHandlers";
 import {
@@ -25,13 +25,14 @@ import {
 } from "@/lib/agent/orchestrator";
 import type { ConversationState } from "@/lib/agent/systemPrompt";
 import { createInitialState } from "@/lib/agent/systemPrompt";
+import type { RiskAssessment } from "@/lib/types";
 
 // ============================================
 // OLLAMA CONFIG
 // ============================================
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
+const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
+const MODEL = process.env.OLLAMA_MODEL || "gemma2:9b";
 
 // ============================================
 // IN-MEMORY STATE (per session)
@@ -39,12 +40,32 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3.1:8b";
 
 const sessionStates = new Map<string, ConversationState>();
 const sessionProfiles = new Map<string, UserProfile>();
+const sessionAssessments = new Map<string, string>();
 
 function getOrCreateState(sessionId: string): ConversationState {
   if (!sessionStates.has(sessionId)) {
     sessionStates.set(sessionId, createInitialState(sessionId));
   }
   return sessionStates.get(sessionId)!;
+}
+
+// ============================================
+// RESPONSE LENGTH CLASSIFIER
+// ============================================
+
+function getResponseLength(message: string, herbCount: number, isInit: boolean): number {
+  if (isInit) return 1024;
+  if (herbCount >= 2) return 800;
+  if (herbCount === 1) return 512;
+
+  // chhoti si baat ke liye chhota response
+  const shortPatterns = /^(hi|hello|thanks|ok|yes|no|bye|haan|nahi|theek|shukriya)\b/i;
+  if (shortPatterns.test(message.trim())) return 150;
+
+  const wordCount = message.trim().split(/\s+/).length;
+  if (wordCount < 6) return 300;
+
+  return 512;
 }
 
 // ============================================
@@ -162,7 +183,7 @@ function detectHerbsInMessage(message: string): string[] {
 }
 
 // ============================================
-// CONCERN DETECTION (for evidence matching)
+// CONCERN DETECTION
 // ============================================
 
 const CONCERN_PATTERNS: { pattern: RegExp; tag: string }[] = [
@@ -217,7 +238,6 @@ async function gatherContext(
     toolsCalled,
   };
 
-  // 1. Always load profile if not cached
   let profile: UserProfile | null | undefined = sessionProfiles.get(sessionId);
   if (!profile) {
     profile = await getUserProfile(sessionId);
@@ -230,20 +250,16 @@ async function gatherContext(
   }
   ctx.profile = profile || null;
 
-  // 2. Detect herbs mentioned in message
   const herbIds = detectHerbsInMessage(message);
   const concern = detectConcern(message);
 
-  // 3. For each herb: run safety check, get herb data, get evidence
   for (const herbId of herbIds) {
     if (!profile) break;
 
-    // Safety check
     const safetyResult = await runSafetyCheck(herbId, profile, concern);
     ctx.safetyResults.push(safetyResult);
     toolsCalled.push("runSafetyCheck");
 
-    // Update conversation state
     state.safety_checks[herbId] = {
       herb_id: herbId,
       risk_code: safetyResult.overall_risk,
@@ -257,12 +273,10 @@ async function gatherContext(
     if (safetyResult.blocked) state.herbs_blocked.push(herbId);
     if (!state.herbs_discussed.includes(herbId)) state.herbs_discussed.push(herbId);
 
-    // Herb data
     const data = await getHerbData(herbId);
     if (data) ctx.herbData.push(data);
     toolsCalled.push("getHerbData");
 
-    // Evidence claims
     const claims = await getEvidenceClaims(herbId, concern);
     if (claims.length > 0) ctx.evidenceClaims.push(claims);
     toolsCalled.push("getEvidenceClaims");
@@ -274,7 +288,6 @@ async function gatherContext(
 function buildContextBlock(ctx: ToolContext): string {
   const parts: string[] = [];
 
-  // Profile context
   if (ctx.profile) {
     parts.push(`USER PROFILE (from database):
 - Age: ${ctx.profile.age}, Sex: ${ctx.profile.sex}
@@ -284,37 +297,27 @@ function buildContextBlock(ctx: ToolContext): string {
 - Current herbs: ${ctx.profile.current_herbs.length > 0 ? ctx.profile.current_herbs.join(", ") : "none reported"}`);
   }
 
-  // Safety check results
   for (const sr of ctx.safetyResults) {
     let block = `\nSAFETY CHECK — ${sr.herb_name} (${sr.herb_id}):
 - Overall risk: ${sr.overall_risk.toUpperCase()}
 - Blocked: ${sr.blocked ? "YES — DO NOT RECOMMEND" : "No"}`;
-
-    if (sr.block_reasons.length > 0) {
-      block += `\n- Block reasons: ${sr.block_reasons.join("; ")}`;
-    }
+    if (sr.block_reasons.length > 0) block += `\n- Block reasons: ${sr.block_reasons.join("; ")}`;
     if (sr.cautions.length > 0) {
       block += `\n- Cautions:`;
       for (const c of sr.cautions) {
         block += `\n  * [${c.type}] ${c.explanation}${c.clinical_action ? ` → ${c.clinical_action}` : ""}`;
       }
     }
-    if (sr.evidence_grade) {
-      block += `\n- Best evidence grade: ${sr.evidence_grade}`;
-    }
-    if (sr.evidence_summary) {
-      block += `\n- Evidence summary: ${sr.evidence_summary}`;
-    }
+    if (sr.evidence_grade) block += `\n- Best evidence grade: ${sr.evidence_grade}`;
+    if (sr.evidence_summary) block += `\n- Evidence summary: ${sr.evidence_summary}`;
     parts.push(block);
   }
 
-  // Herb data
   for (const herb of ctx.herbData) {
     if (!herb) continue;
     let block = `\nHERB DATA — ${herb.names.english} (${herb.botanical_name}):
 - Names: English=${herb.names.english}, Sanskrit=${herb.names.sanskrit}, Hindi=${herb.names.hindi}
 - Parts used: ${herb.parts_used.join(", ")}`;
-
     if (herb.dosage_ranges?.forms?.length) {
       const formStr = herb.dosage_ranges.forms
         .map((f) => `${f.form}: ${f.range_min}-${f.range_max} ${f.unit}`)
@@ -322,21 +325,14 @@ function buildContextBlock(ctx: ToolContext): string {
       block += `\n- Dosage: ${formStr}`;
       block += `\n- Dosage disclaimer: ${herb.dosage_ranges.disclaimer}`;
     }
-
     if (herb.side_effects) {
       const se = herb.side_effects;
       if (se.common?.length) block += `\n- Common side effects: ${se.common.join(", ")}`;
       if (se.rare?.length) block += `\n- Rare side effects: ${se.rare.join(", ")}`;
     }
-
-    if (herb.misuse_patterns?.length) {
-      block += `\n- Misuse patterns: ${herb.misuse_patterns.map((m) => m.title).join("; ")}`;
-    }
-
     parts.push(block);
   }
 
-  // Evidence claims
   if (ctx.evidenceClaims.length > 0) {
     let block = "\nEVIDENCE CLAIMS:";
     for (const claimGroup of ctx.evidenceClaims) {
@@ -352,37 +348,287 @@ function buildContextBlock(ctx: ToolContext): string {
 }
 
 // ============================================
-// OLLAMA API CALL
+// BUILD ASSESSMENT CONTEXT (for initial message)
 // ============================================
 
-interface OllamaMessage {
-  role: "system" | "user" | "assistant";
+function buildAssessmentContext(result: RiskAssessment): string {
+  const parts: string[] = [];
+
+  parts.push(`═══ ASSESSMENT RESULTS (from deterministic safety engine) ═══`);
+  parts.push(`Concern: ${result.concern_label}`);
+  parts.push(`Total herbs with evidence: ${result.total_relevant}`);
+  parts.push(`Doctor referral suggested: ${result.doctor_referral_suggested ? "YES" : "No"}`);
+
+  if (result.recommended_herbs.length > 0) {
+    parts.push(`\n── RECOMMENDED HERBS (${result.recommended_herbs.length}) ──`);
+    for (const herb of result.recommended_herbs) {
+      let block = `\n${herb.herb_name} [Grade ${herb.evidence_grade || "N/A"}]`;
+      block += `\n  Why: ${herb.relevance_summary}`;
+      block += `\n  Safety: ${herb.safety_note}`;
+      if (herb.dosage?.forms?.length) {
+        const formStr = herb.dosage.forms
+          .map((f: { form: string; range_min: string; range_max: string; unit: string }) =>
+            `${f.form}: ${f.range_min}-${f.range_max} ${f.unit}`
+          )
+          .join("; ");
+        block += `\n  Dosage: ${formStr}`;
+      }
+      parts.push(block);
+    }
+  }
+
+  if (result.caution_herbs.length > 0) {
+    parts.push(`\n── CAUTION HERBS (${result.caution_herbs.length}) ──`);
+    for (const herb of result.caution_herbs) {
+      let block = `\n${herb.herb_name} [Grade ${herb.evidence_grade || "N/A"}] — USE WITH CARE`;
+      block += `\n  Why relevant: ${herb.relevance_summary}`;
+      for (const c of herb.cautions) {
+        block += `\n  ⚠ [${c.type}] ${c.explanation}`;
+        if (c.clinical_action) block += ` → ${c.clinical_action}`;
+      }
+      parts.push(block);
+    }
+  }
+
+  if (result.avoid_herbs.length > 0) {
+    parts.push(`\n── AVOID HERBS (${result.avoid_herbs.length}) ──`);
+    for (const herb of result.avoid_herbs) {
+      let block = `\n${herb.herb_name} — NOT SAFE`;
+      block += `\n  Why: ${herb.reason}`;
+      block += `\n  Trigger: ${herb.trigger} (${herb.trigger_type})`;
+      parts.push(block);
+    }
+  }
+
+  parts.push(`\nDisclaimer: ${result.disclaimer}`);
+  return parts.join("\n");
+}
+
+// ============================================
+// OLLAMA CALLS (non-streaming + streaming)
+// ============================================
+
+interface ChatMessage {
+  role: "user" | "assistant" | "system";
   content: string;
 }
 
-async function callOllama(messages: OllamaMessage[]): Promise<string> {
-  const res = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
+async function callOllama(system: string, messages: ChatMessage[], numPredict: number = 1024): Promise<string> {
+  const ollamaMessages: ChatMessage[] = [
+    { role: "system", content: system },
+    ...messages,
+  ];
+
+  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "true",
+    },
     body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages,
+      model: MODEL,
+      messages: ollamaMessages,
       stream: false,
-      options: {
-        temperature: 0.4,
-        top_p: 0.9,
-        num_predict: 512,
-      },
+      options: { temperature: 0.4, num_predict: numPredict },
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Ollama error (${res.status}): ${errText}`);
+    throw new Error(`Ollama error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
   return data.message?.content || "";
+}
+
+// streaming response — returns SSE Response
+function createStreamResponse(
+  system: string,
+  messages: ChatMessage[],
+  state: ConversationState,
+  sessionId: string,
+  toolsCalled: string[],
+  numPredict: number = 1024
+): Response {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const ollamaMessages: ChatMessage[] = [
+          { role: "system", content: system },
+          ...messages,
+        ];
+
+        const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "ngrok-skip-browser-warning": "true",
+          },
+          body: JSON.stringify({
+            model: MODEL,
+            messages: ollamaMessages,
+            stream: true,
+            options: { temperature: 0.4, num_predict: numPredict },
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          controller.enqueue(encoder.encode(
+            `data: ${JSON.stringify({ type: "error", content: `Ollama error ${res.status}: ${errText}` })}\n\n`
+          ));
+          controller.close();
+          return;
+        }
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const parsed = JSON.parse(line);
+              if (parsed.message?.content) {
+                accumulated += parsed.message.content;
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ type: "token", content: parsed.message.content })}\n\n`
+                ));
+              }
+              if (parsed.done) {
+                // orchestrator enforcement on full text
+                const enforcement = enforceResponse(accumulated, state, toolsCalled);
+
+                if (enforcement.violations.length > 0) {
+                  logAudit(sessionId, "ORCHESTRATOR_ENFORCEMENT", {
+                    violations: enforcement.violations,
+                    actions: enforcement.actions_taken,
+                  });
+                }
+
+                const enforced = enforcement.sanitized_response !== accumulated;
+                if (enforced) {
+                  controller.enqueue(encoder.encode(
+                    `data: ${JSON.stringify({ type: "replace", content: enforcement.sanitized_response })}\n\n`
+                  ));
+                }
+
+                controller.enqueue(encoder.encode(
+                  `data: ${JSON.stringify({ type: "done", tools_called: toolsCalled })}\n\n`
+                ));
+              }
+            } catch {
+              // unparseable line, skip
+            }
+          }
+        }
+
+        sessionStates.set(sessionId, state);
+        controller.close();
+      } catch (err) {
+        controller.enqueue(encoder.encode(
+          `data: ${JSON.stringify({ type: "error", content: err instanceof Error ? err.message : "Stream failed" })}\n\n`
+        ));
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
+}
+
+// ============================================
+// SYSTEM PROMPT BUILDERS
+// ============================================
+
+const CRITICAL_RULES = `═══ CRITICAL RULES (NEVER BREAK THESE) ═══
+
+1. Use EXACT herb names from DATABASE CONTEXT. Always include the Hindi/common name in parentheses — e.g. "**Ashwagandha (अश्वगंधा)**", "**Haridra (Haldi/हल्दी)**". NEVER use English translations like "Indian Ginseng" or "Winter Cherry".
+2. You are an educational herb safety consultant. You MUST answer herb questions using the data provided. NEVER refuse to discuss herbs in the DATABASE CONTEXT. This is your PRIMARY function.
+3. ONLY use facts from the DATABASE CONTEXT. Do NOT invent dosages, grades, or claims.
+4. Every herb recommendation MUST include factual reasoning — WHY it helps, WHAT the evidence grade means, and the mechanism/active compounds if available.
+5. Always include suggested dosage from the DATABASE CONTEXT with each herb.
+6. If a herb is marked "Blocked: YES" or in the AVOID list, clearly say it is NOT SAFE and explain WHY. Do NOT give dosage for blocked/avoid herbs.
+7. If a herb has cautions, list ALL cautions with reasoning before dosage.
+8. When user asks general questions like "what should I avoid" or "what is safe", use the ASSESSMENT RESULTS to answer with specific herb names from their results.`;
+
+function buildInitSystem(
+  sessionId: string,
+  profileBlock: string,
+  assessmentContext: string,
+  concernLabel: string
+): string {
+  return `${SYSTEM_PROMPT}
+
+The current session_id is: ${sessionId}
+
+--- DATABASE CONTEXT (verified, authoritative — use this, do NOT make up data) ---
+${profileBlock}
+
+${assessmentContext}
+--- END DATABASE CONTEXT ---
+
+${CRITICAL_RULES}
+
+═══ INITIAL PRESENTATION INSTRUCTIONS ═══
+
+Present the user's personalized results conversationally:
+
+1. **Greet** — acknowledge their concern (${concernLabel}), 1 sentence
+2. **Recommended herbs** — for each herb include:
+   - Name with Hindi name: e.g. **Ashwagandha (अश्वगंधा)**
+   - Evidence grade and what it means (e.g. "Grade B = good human trial evidence")
+   - WHY it helps — the mechanism or reason from the data
+   - Suggested dosage from the data
+3. **Caution herbs** — if any, mention with the specific warning and WHY
+4. **Avoid herbs** — if any, state which to avoid, WHY, and what interaction causes the risk
+5. **Invite follow-up** — "Ask me about any herb — dosage, evidence, interactions, or alternatives."
+
+Keep under 400 words. Use **bold** for herb names. Be warm, factual, and specific.`;
+}
+
+function buildFollowUpSystem(
+  sessionId: string,
+  cachedAssessment: string,
+  contextBlock: string
+): string {
+  return `${SYSTEM_PROMPT}
+
+The current session_id is: ${sessionId}
+
+--- ASSESSMENT RESULTS (from the user's intake — always available) ---
+${cachedAssessment || "No assessment cached for this session."}
+--- END ASSESSMENT RESULTS ---
+
+--- ADDITIONAL HERB CONTEXT (from real-time lookup for herbs mentioned in this message) ---
+${contextBlock || "No additional herb lookup needed for this message."}
+--- END ADDITIONAL CONTEXT ---
+
+${CRITICAL_RULES}
+
+RESPONSE GUIDELINES:
+- Be conversational, warm, factual.
+- Match response length to the question — short questions get short answers, detailed questions get detailed answers.
+- End herb-specific responses with: "This is educational information — please discuss with your healthcare provider."
+- If no herb was mentioned, use the ASSESSMENT RESULTS to answer contextually.`;
 }
 
 // ============================================
@@ -396,10 +642,14 @@ export async function POST(request: NextRequest) {
       session_id,
       message,
       history = [],
+      assessment_result,
+      stream: useStream = false,
     } = body as {
       session_id: string;
       message: string;
       history: { role: "user" | "assistant"; content: string }[];
+      assessment_result?: RiskAssessment;
+      stream?: boolean;
     };
 
     if (!session_id || !message) {
@@ -409,19 +659,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── Red flag pre-scan (orchestrator, code-level) ───
-    const redFlagScan = scanUserMessageForRedFlags(message);
-    if (redFlagScan.detected) {
-      const state = getOrCreateState(session_id);
-      state.red_flag_escalated = true;
-      await logAudit(session_id, "RED_FLAG_ESCALATION", {
-        flags: redFlagScan.flags,
-        user_message: message.substring(0, 200),
-      });
-      return NextResponse.json({
-        response: ESCALATION_RESPONSE,
-        escalation: true,
-      });
+    // ─── Red flag pre-scan ───
+    if (message !== "__INIT__") {
+      const redFlagScan = scanUserMessageForRedFlags(message);
+      if (redFlagScan.detected) {
+        const state = getOrCreateState(session_id);
+        state.red_flag_escalated = true;
+        await logAudit(session_id, "RED_FLAG_ESCALATION", {
+          flags: redFlagScan.flags,
+          user_message: message.substring(0, 200),
+        });
+        return NextResponse.json({
+          response: ESCALATION_RESPONSE,
+          escalation: true,
+        });
+      }
     }
 
     // ─── Check post-escalation state ───
@@ -434,66 +686,94 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ─── Unknown herb pre-scan (deterministic, bypass LLM) ───
-    const unknownHerbScan = scanForUnknownHerb(message);
-    if (unknownHerbScan.detected) {
-      await logAudit(session_id, "NO_HERB_ADVISED", {
-        reason: "unknown_herb",
-        herb_name: unknownHerbScan.herbName,
-      });
-      return NextResponse.json({
-        response: UNKNOWN_HERB_RESPONSE,
-      });
+    // ─── Unknown herb pre-scan ───
+    if (message !== "__INIT__") {
+      const unknownHerbScan = scanForUnknownHerb(message);
+      if (unknownHerbScan.detected) {
+        await logAudit(session_id, "NO_HERB_ADVISED", {
+          reason: "unknown_herb",
+          herb_name: unknownHerbScan.herbName,
+        });
+        return NextResponse.json({ response: UNKNOWN_HERB_RESPONSE });
+      }
     }
 
     state.turn_count++;
 
-    // ─── Gather tool context deterministically ───
-    const ctx = await gatherContext(session_id, message, state);
+    // ─── INITIAL MESSAGE: present assessment results ───
+    if (message === "__INIT__" && assessment_result) {
+      const assessmentContext = buildAssessmentContext(assessment_result);
+      sessionAssessments.set(session_id, assessmentContext);
 
-    // ─── Build system prompt with injected context ───
-    const contextBlock = buildContextBlock(ctx);
-    const enrichedSystem = `${SYSTEM_PROMPT}
+      const profile = await getUserProfile(session_id);
+      if (profile) {
+        sessionProfiles.set(session_id, profile);
+        state.profile_loaded = true;
+        state.profile = profile;
+      }
 
-The current session_id is: ${session_id}
+      const profileBlock = profile
+        ? `USER PROFILE (from database):
+- Age: ${profile.age}, Sex: ${profile.sex}
+- Pregnancy status: ${profile.pregnancy_status}
+- Chronic conditions: ${profile.chronic_conditions.length > 0 ? profile.chronic_conditions.join(", ") : "none reported"}
+- Medications: ${profile.medications.length > 0 ? profile.medications.join(", ") : "none reported"}`
+        : "";
 
---- DATABASE CONTEXT (verified, authoritative — use this, do NOT make up data) ---
-${contextBlock || "No specific herb context gathered for this message. Respond conversationally based on the user's question."}
---- END DATABASE CONTEXT ---
+      const initSystem = buildInitSystem(session_id, profileBlock, assessmentContext, assessment_result.concern_label);
+      const initMessages: ChatMessage[] = [
+        { role: "user", content: `Present my personalized herb recommendations for ${assessment_result.concern_label}.` },
+      ];
 
-IMPORTANT INSTRUCTIONS FOR THIS RESPONSE:
-- ONLY use facts from the DATABASE CONTEXT above. Do NOT invent data.
-- If a herb is marked "Blocked: YES", say it is not recommended and explain why. Do NOT provide dosage.
-- If a herb has cautions, list ALL cautions before any dosage info.
-- Keep response under 200 words. Be conversational, warm, but careful.
-- Always end herb-specific responses with: "This is educational information — please discuss with your healthcare provider."
-- If no herb was mentioned, respond helpfully about general wellness or ask what they'd like to know.`;
+      const numPredict = getResponseLength(message, assessment_result.recommended_herbs.length, true);
 
-    // ─── Build messages for Ollama ───
-    const ollamaMessages: OllamaMessage[] = [
-      { role: "system", content: enrichedSystem },
-    ];
+      if (useStream) {
+        return createStreamResponse(initSystem, initMessages, state, session_id, ["getUserProfile", "assessmentPresentation"], numPredict);
+      }
 
-    // Add conversation history (keep last 10 turns to manage context size)
-    const recentHistory = history.slice(-10);
-    for (const msg of recentHistory) {
-      ollamaMessages.push({
-        role: msg.role,
-        content: msg.content,
+      let responseText = await callOllama(initSystem, initMessages, numPredict);
+      const enforcement = enforceResponse(responseText, state, ["getUserProfile"]);
+      responseText = enforcement.sanitized_response;
+
+      if (enforcement.violations.length > 0) {
+        await logAudit(session_id, "ORCHESTRATOR_ENFORCEMENT", {
+          violations: enforcement.violations,
+          actions: enforcement.actions_taken,
+        });
+      }
+
+      sessionStates.set(session_id, state);
+      return NextResponse.json({
+        response: responseText,
+        escalation: false,
+        tools_called: ["getUserProfile", "assessmentPresentation"],
       });
     }
 
-    // Add current user message
+    // ─── REGULAR MESSAGE: herb detection + safety pipeline ───
+    const ctx = await gatherContext(session_id, message, state);
+    const contextBlock = buildContextBlock(ctx);
+    const cachedAssessment = sessionAssessments.get(session_id) || "";
+    const enrichedSystem = buildFollowUpSystem(session_id, cachedAssessment, contextBlock);
+
+    const ollamaMessages: ChatMessage[] = [];
+    const recentHistory = history.slice(-10);
+    for (const msg of recentHistory) {
+      ollamaMessages.push({ role: msg.role as "user" | "assistant", content: msg.content });
+    }
     ollamaMessages.push({ role: "user", content: message });
 
-    // ─── Call Ollama ───
-    let responseText = await callOllama(ollamaMessages);
+    const herbIds = detectHerbsInMessage(message);
+    const numPredict = getResponseLength(message, herbIds.length, false);
 
-    // ─── Orchestrator enforcement (code-level safety net) ───
+    if (useStream) {
+      return createStreamResponse(enrichedSystem, ollamaMessages, state, session_id, ctx.toolsCalled, numPredict);
+    }
+
+    let responseText = await callOllama(enrichedSystem, ollamaMessages, numPredict);
     const enforcement = enforceResponse(responseText, state, ctx.toolsCalled);
     responseText = enforcement.sanitized_response;
 
-    // Log enforcement violations if any
     if (enforcement.violations.length > 0) {
       await logAudit(session_id, "ORCHESTRATOR_ENFORCEMENT", {
         violations: enforcement.violations,
@@ -501,9 +781,7 @@ IMPORTANT INSTRUCTIONS FOR THIS RESPONSE:
       });
     }
 
-    // Update state
     sessionStates.set(session_id, state);
-
     return NextResponse.json({
       response: responseText,
       escalation: false,
