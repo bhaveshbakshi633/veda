@@ -393,7 +393,7 @@ export default function ChatPage() {
     : null;
 
   return (
-    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 140px)" }}>
+    <div className="max-w-3xl mx-auto flex flex-col" style={{ height: "calc(100dvh - 120px)" }}>
       {/* header */}
       <div className="shrink-0 bg-white rounded-2xl px-5 py-4 shadow-sm border border-gray-100 mb-4">
         <div className="flex items-center justify-between">
