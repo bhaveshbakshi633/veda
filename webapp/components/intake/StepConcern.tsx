@@ -47,54 +47,6 @@ export default function StepConcern({ form, setForm, error }: StepConcernProps) 
           </div>
         </div>
 
-        {/* duration + severity */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="duration-select" className="block text-sm font-medium text-gray-700 mb-1.5">
-              How long?
-            </label>
-            <select
-              id="duration-select"
-              value={form.symptom_duration}
-              onChange={(e) => setForm((p) => ({ ...p, symptom_duration: e.target.value }))}
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-gray-50/50 focus:bg-white focus:ring-2 focus:ring-ayurv-primary/20 outline-none transition-all"
-            >
-              <option value="">Select...</option>
-              <option value="less_than_1_week">Less than a week</option>
-              <option value="1_4_weeks">A few weeks</option>
-              <option value="1_3_months">1-3 months</option>
-              <option value="3_6_months">3-6 months</option>
-              <option value="over_6_months">Over 6 months</option>
-              <option value="chronic_ongoing">Ongoing / chronic</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Severity
-            </label>
-            <div className="flex gap-2">
-              {(["mild", "moderate", "severe"] as const).map((sev) => (
-                <button
-                  key={sev}
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, symptom_severity: sev }))}
-                  className={`flex-1 py-3 rounded-xl border-2 text-xs font-semibold transition-all duration-200 ${
-                    form.symptom_severity === sev
-                      ? sev === "severe"
-                        ? "bg-risk-red text-white border-risk-red shadow-md shadow-risk-red/15"
-                        : sev === "moderate"
-                          ? "bg-risk-amber text-white border-risk-amber shadow-md shadow-risk-amber/15"
-                          : "bg-risk-green text-white border-risk-green shadow-md shadow-risk-green/15"
-                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  {sev.charAt(0).toUpperCase() + sev.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* error */}
         {error && (

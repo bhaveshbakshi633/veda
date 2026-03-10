@@ -78,11 +78,7 @@ export default function IntakePage() {
           (form.has_medications === false || form.medications.length > 0)
         );
       case 3:
-        return (
-          form.symptom_primary !== "" &&
-          form.symptom_duration !== "" &&
-          form.symptom_severity !== ""
-        );
+        return form.symptom_primary !== "";
       default:
         return false;
     }
@@ -104,8 +100,8 @@ export default function IntakePage() {
       medications: form.has_medications ? form.medications : ["none"],
       current_herbs: form.current_herbs,
       symptom_primary: form.symptom_primary,
-      symptom_duration: form.symptom_duration,
-      symptom_severity: form.symptom_severity,
+      symptom_duration: form.symptom_duration || "chronic_ongoing",
+      symptom_severity: form.symptom_severity || "moderate",
       user_goal: form.user_goal || "find_herb_for_concern",
       red_flag_screen: form.red_flags,
       disclaimer_accepted: true as const,
