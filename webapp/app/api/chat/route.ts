@@ -315,7 +315,9 @@ function buildContextBlock(ctx: ToolContext): string {
 
   for (const herb of ctx.herbData) {
     if (!herb) continue;
-    let block = `\nHERB DATA — ${herb.names.english} (${herb.botanical_name}):
+    // herb scoping markers — helps LLM stay on topic
+    let block = `\n[HERB: ${herb.names.english} START]
+HERB DATA — ${herb.names.english} (${herb.botanical_name}):
 - Names: English=${herb.names.english}, Sanskrit=${herb.names.sanskrit}, Hindi=${herb.names.hindi}
 - Parts used: ${herb.parts_used.join(", ")}`;
     if (herb.dosage_ranges?.forms?.length) {
@@ -330,6 +332,7 @@ function buildContextBlock(ctx: ToolContext): string {
       if (se.common?.length) block += `\n- Common side effects: ${se.common.join(", ")}`;
       if (se.rare?.length) block += `\n- Rare side effects: ${se.rare.join(", ")}`;
     }
+    block += `\n[HERB: ${herb.names.english} END]`;
     parts.push(block);
   }
 
@@ -429,7 +432,7 @@ async function callOllama(system: string, messages: ChatMessage[], numPredict: n
       model: MODEL,
       messages: ollamaMessages,
       stream: false,
-      options: { temperature: 0.4, num_predict: numPredict },
+      options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
     }),
   });
 
@@ -471,7 +474,7 @@ function createStreamResponse(
             model: MODEL,
             messages: ollamaMessages,
             stream: true,
-            options: { temperature: 0.4, num_predict: numPredict },
+            options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
           }),
         });
 
@@ -568,7 +571,8 @@ const CRITICAL_RULES = `═══ CRITICAL RULES (NEVER BREAK THESE) ═══
 5. Always include suggested dosage from the DATABASE CONTEXT with each herb.
 6. If a herb is marked "Blocked: YES" or in the AVOID list, clearly say it is NOT SAFE and explain WHY. Do NOT give dosage for blocked/avoid herbs.
 7. If a herb has cautions, list ALL cautions with reasoning before dosage.
-8. When user asks general questions like "what should I avoid" or "what is safe", use the ASSESSMENT RESULTS to answer with specific herb names from their results.`;
+8. When user asks general questions like "what should I avoid" or "what is safe", use the ASSESSMENT RESULTS to answer with specific herb names from their results.
+9. HERB SCOPING: When the user asks about a specific herb, respond ONLY about THAT herb. Do NOT discuss other herbs unless directly relevant (e.g. interaction). Look for [HERB: name START] and [HERB: name END] markers in the context to find the correct herb data.`;
 
 function buildInitSystem(
   sessionId: string,
@@ -644,12 +648,14 @@ export async function POST(request: NextRequest) {
       history = [],
       assessment_result,
       stream: useStream = false,
+      voice_mode: voiceMode = false,
     } = body as {
       session_id: string;
       message: string;
       history: { role: "user" | "assistant"; content: string }[];
       assessment_result?: RiskAssessment;
       stream?: boolean;
+      voice_mode?: boolean;
     };
 
     if (!session_id || !message) {
@@ -725,10 +731,12 @@ export async function POST(request: NextRequest) {
         { role: "user", content: `Present my personalized herb recommendations for ${assessment_result.concern_label}.` },
       ];
 
-      const numPredict = getResponseLength(message, assessment_result.recommended_herbs.length, true);
+      let numPredict = getResponseLength(message, assessment_result.recommended_herbs.length, true);
+      if (voiceMode) numPredict = Math.min(numPredict, 256);
 
       if (useStream) {
-        return createStreamResponse(initSystem, initMessages, state, session_id, ["getUserProfile", "assessmentPresentation"], numPredict);
+        const sys = voiceMode ? initSystem + "\n\nVOICE MODE: Keep response under 100 words. Be conversational. No markdown formatting. Spell out abbreviations." : initSystem;
+        return createStreamResponse(sys, initMessages, state, session_id, ["getUserProfile", "assessmentPresentation"], numPredict);
       }
 
       let responseText = await callOllama(initSystem, initMessages, numPredict);
@@ -764,10 +772,12 @@ export async function POST(request: NextRequest) {
     ollamaMessages.push({ role: "user", content: message });
 
     const herbIds = detectHerbsInMessage(message);
-    const numPredict = getResponseLength(message, herbIds.length, false);
+    let numPredict = getResponseLength(message, herbIds.length, false);
+    if (voiceMode) numPredict = Math.min(numPredict, 256);
 
     if (useStream) {
-      return createStreamResponse(enrichedSystem, ollamaMessages, state, session_id, ctx.toolsCalled, numPredict);
+      const sys = voiceMode ? enrichedSystem + "\n\nVOICE MODE: Keep response under 100 words. Be conversational. No markdown formatting. Spell out abbreviations." : enrichedSystem;
+      return createStreamResponse(sys, ollamaMessages, state, session_id, ctx.toolsCalled, numPredict);
     }
 
     let responseText = await callOllama(enrichedSystem, ollamaMessages, numPredict);

@@ -177,6 +177,7 @@ export default function ChatPage() {
           message: text.trim(),
           history,
           stream: true,
+          voice_mode: voiceMode,
         }),
       });
 
