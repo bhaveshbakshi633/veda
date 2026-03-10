@@ -183,7 +183,9 @@ INSERT INTO medications (id, medication_name, medication_class, common_brands_in
 ('med_tamoxifen', 'Tamoxifen', 'Anti-estrogen', ARRAY['Nolvadex','Tamodex'], 'oncology', false, 'Any estrogenic herb may oppose Tamoxifen.'),
 ('med_iron_supplement', 'Iron Supplement', 'Hematologic', ARRAY['Various'], 'hematology', false, 'Tannin-rich herbs chelate iron. Separate by 2 hours.'),
 ('med_nsaid_regular', 'NSAID (Regular)', 'Anti-inflammatory', ARRAY['Ibuprofen/Brufen','Diclofenac/Voveran'], 'various', false, 'Additive GI irritation and antiplatelet effects.'),
-('med_lithium', 'Lithium', 'Mood stabilizer', ARRAY['Licab','Lithosun'], 'psychiatry', true, 'Narrow therapeutic index. Herbs affecting renal clearance or fluid balance affect levels.');
+('med_lithium', 'Lithium', 'Mood stabilizer', ARRAY['Licab','Lithosun'], 'psychiatry', true, 'Narrow therapeutic index. Herbs affecting renal clearance or fluid balance affect levels.'),
+('med_statin', 'Statin', 'Lipid-lowering', ARRAY['Atorvastatin/Atorva','Rosuvastatin/Rosuvas'], 'cardiology', false, 'Herbs affecting CYP3A4 metabolism may alter statin levels. Monitor for myalgia.'),
+('med_antipsychotic', 'Antipsychotic', 'Antipsychotic', ARRAY['Olanzapine/Olanex','Risperidone/Risperdal','Quetiapine/Quel'], 'psychiatry', false, 'Herbs with CNS activity may cause additive sedation or oppose antipsychotic effects.');
 
 
 -- ============================
