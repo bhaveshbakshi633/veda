@@ -38,7 +38,6 @@ export default function StepConcern({ form, setForm, error }: StepConcernProps) 
                     : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-accent/30 hover:bg-ayurv-primary/5 hover:shadow-sm"
                 }`}
               >
-                <span className="text-xl">{opt.icon}</span>
                 <span className="font-medium text-xs leading-tight text-center">
                   {opt.label}
                 </span>

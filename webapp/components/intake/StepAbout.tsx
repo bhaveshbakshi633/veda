@@ -128,7 +128,8 @@ export default function StepAbout({ form, setForm, profileLoaded, onClearProfile
         {/* red flags — SAFETY GATE */}
         <div className="border-t border-gray-100 pt-6">
           <p className="text-sm font-medium text-gray-700 mb-3">
-            Are you experiencing any of these <span className="text-risk-red font-semibold">right now</span>?
+            Do you have any <span className="text-risk-red font-semibold">urgent symptoms</span> right now?
+            <span className="text-xs text-gray-400 block mt-0.5">e.g. chest pain, breathing difficulty, high fever</span>
           </p>
           <div className="flex gap-3 mb-3">
             <button
