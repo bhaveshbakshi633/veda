@@ -574,11 +574,23 @@ const CRITICAL_RULES = `═══ CRITICAL RULES (NEVER BREAK THESE) ═══
 8. When user asks general questions like "what should I avoid" or "what is safe", use the ASSESSMENT RESULTS to answer with specific herb names from their results.
 9. HERB SCOPING: When the user asks about a specific herb, respond ONLY about THAT herb. Do NOT discuss other herbs unless directly relevant (e.g. interaction). Look for [HERB: name START] and [HERB: name END] markers in the context to find the correct herb data.`;
 
+function getLanguageInstruction(lang: "en" | "hi"): string {
+  if (lang === "hi") {
+    return `\n═══ LANGUAGE: HINGLISH ═══
+Respond in Hinglish — naturally mix Hindi and English. Use Devanagari for Hindi words.
+Example style: "Ashwagandha (अश्वगंधा) stress ke liye bahut effective hai. Evidence grade B hai — iska matlab hai ki achhe human trials mein tested hai. Dosage: 300-600mg powder din mein do baar."
+Keep medical/herb terms in English, conversational parts in Hindi. Be warm and relatable.`;
+  }
+  return `\n═══ LANGUAGE: ENGLISH ═══
+Respond in clear, simple English. Keep it professional but warm.`;
+}
+
 function buildInitSystem(
   sessionId: string,
   profileBlock: string,
   assessmentContext: string,
-  concernLabel: string
+  concernLabel: string,
+  lang: "en" | "hi" = "en"
 ): string {
   return `${SYSTEM_PROMPT}
 
@@ -606,13 +618,15 @@ Present the user's personalized results conversationally:
 4. **Avoid herbs** — if any, state which to avoid, WHY, and what interaction causes the risk
 5. **Invite follow-up** — "Ask me about any herb — dosage, evidence, interactions, or alternatives."
 
-Keep under 400 words. Use **bold** for herb names. Be warm, factual, and specific.`;
+Keep under 400 words. Use **bold** for herb names. Be warm, factual, and specific.
+${getLanguageInstruction(lang)}`;
 }
 
 function buildFollowUpSystem(
   sessionId: string,
   cachedAssessment: string,
-  contextBlock: string
+  contextBlock: string,
+  lang: "en" | "hi" = "en"
 ): string {
   return `${SYSTEM_PROMPT}
 
@@ -632,7 +646,8 @@ RESPONSE GUIDELINES:
 - Be conversational, warm, factual.
 - Match response length to the question — short questions get short answers, detailed questions get detailed answers.
 - End herb-specific responses with: "This is educational information — please discuss with your healthcare provider."
-- If no herb was mentioned, use the ASSESSMENT RESULTS to answer contextually.`;
+- If no herb was mentioned, use the ASSESSMENT RESULTS to answer contextually.
+${getLanguageInstruction(lang)}`;
 }
 
 // ============================================
@@ -649,6 +664,7 @@ export async function POST(request: NextRequest) {
       assessment_result,
       stream: useStream = false,
       voice_mode: voiceMode = false,
+      language: langPref = "en",
     } = body as {
       session_id: string;
       message: string;
@@ -656,6 +672,7 @@ export async function POST(request: NextRequest) {
       assessment_result?: RiskAssessment;
       stream?: boolean;
       voice_mode?: boolean;
+      language?: "en" | "hi";
     };
 
     if (!session_id || !message) {
@@ -726,7 +743,7 @@ export async function POST(request: NextRequest) {
 - Medications: ${profile.medications.length > 0 ? profile.medications.join(", ") : "none reported"}`
         : "";
 
-      const initSystem = buildInitSystem(session_id, profileBlock, assessmentContext, assessment_result.concern_label);
+      const initSystem = buildInitSystem(session_id, profileBlock, assessmentContext, assessment_result.concern_label, langPref);
       const initMessages: ChatMessage[] = [
         { role: "user", content: `Present my personalized herb recommendations for ${assessment_result.concern_label}.` },
       ];
@@ -762,7 +779,7 @@ export async function POST(request: NextRequest) {
     const ctx = await gatherContext(session_id, message, state);
     const contextBlock = buildContextBlock(ctx);
     const cachedAssessment = sessionAssessments.get(session_id) || "";
-    const enrichedSystem = buildFollowUpSystem(session_id, cachedAssessment, contextBlock);
+    const enrichedSystem = buildFollowUpSystem(session_id, cachedAssessment, contextBlock, langPref);
 
     const ollamaMessages: ChatMessage[] = [];
     const recentHistory = history.slice(-10);

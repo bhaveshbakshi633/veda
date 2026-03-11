@@ -31,6 +31,7 @@ export default function ChatPage() {
   const [speaking, setSpeaking] = useState(false);
   const [sttSupported, setSttSupported] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState<number | null>(null);
+  const [language, setLanguage] = useState<"en" | "hi">("en");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<ReturnType<typeof createRecognition> | null>(null);
@@ -91,6 +92,7 @@ export default function ChatPage() {
           history: [],
           assessment_result: result,
           stream: true,
+          language,
         }),
       });
 
@@ -189,6 +191,7 @@ export default function ChatPage() {
           history,
           stream: true,
           voice_mode: voiceMode,
+          language,
         }),
       });
 
@@ -400,6 +403,18 @@ export default function ChatPage() {
             )}
           </div>
           <div className="flex gap-1.5 items-center shrink-0">
+            {/* language toggle */}
+            <button
+              onClick={() => setLanguage(l => l === "en" ? "hi" : "en")}
+              className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
+                language === "hi"
+                  ? "bg-orange-50 text-orange-600 border-orange-200"
+                  : "bg-gray-50 text-gray-500 border-gray-200"
+              }`}
+              title={language === "en" ? "Switch to Hinglish" : "Switch to English"}
+            >
+              {language === "en" ? "EN" : "HI"}
+            </button>
             {sttSupported && (
               <button
                 onClick={toggleVoiceMode}
