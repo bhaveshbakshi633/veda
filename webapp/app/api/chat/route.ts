@@ -790,6 +790,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // validate history element schema — prevent type errors downstream
+    const validRoles = new Set(["user", "assistant"]);
+    for (const entry of history) {
+      if (
+        !entry ||
+        typeof entry !== "object" ||
+        !validRoles.has(entry.role) ||
+        typeof entry.content !== "string"
+      ) {
+        return NextResponse.json(
+          { error: "Invalid history format" },
+          { status: 400 }
+        );
+      }
+    }
+
     // ─── Red flag pre-scan ───
     if (message !== "__INIT__") {
       const redFlagScan = scanUserMessageForRedFlags(message);

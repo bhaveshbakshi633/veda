@@ -21,15 +21,25 @@ function detectLanguage(text: string): "hi" | "en" {
   return hindiCount / chars.length > 0.2 ? "hi" : "en";
 }
 
+// strip HTML/SSML tags and dangerous unicode to prevent injection
+function sanitizeForTTS(text: string): string {
+  return text
+    .replace(/<[^>]*>/g, "")                        // strip HTML/SSML tags
+    .replace(/[\u202E\u202D\u061C]/g, "")            // bidi overrides hatao
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");  // control chars hatao
+}
+
 // markdown strip for cleaner speech
 function cleanText(text: string): string {
-  return text
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/^[-•]\s*/gm, "")
-    .replace(/#{1,6}\s*/g, "")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .trim();
+  return sanitizeForTTS(
+    text
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/^[-•]\s*/gm, "")
+      .replace(/#{1,6}\s*/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .trim()
+  );
 }
 
 export async function POST(request: NextRequest) {
