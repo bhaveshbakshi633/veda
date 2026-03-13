@@ -43,7 +43,7 @@ export default function EvidenceDrawer({
         setLoading(false);
       })
       .catch((err) => {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : "Failed to load evidence");
         setLoading(false);
       });
   }, [open, herbId, lastFetchedHerbId]);

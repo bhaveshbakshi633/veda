@@ -205,7 +205,12 @@ export default function ChatPage() {
             throw new Error(data.content);
           }
         } catch (e) {
-          if (e instanceof Error && e.message !== "Unexpected end of JSON input") throw e;
+          // only propagate actual application errors (from data.type === "error")
+          // ignore JSON parse errors from incomplete SSE chunks — they're expected
+          if (e instanceof Error && e.message !== "Unexpected end of JSON input") {
+            // check if it's a thrown error from data.type === "error" vs parse glitch
+            if (!String(e.message).includes("JSON")) throw e;
+          }
         }
       }
     }

@@ -68,6 +68,18 @@ export default function ResultsPage() {
 
     try {
       const parsed = JSON.parse(stored) as RiskAssessment;
+
+      // validate required fields to prevent render crashes from corrupted data
+      if (
+        !parsed.session_id ||
+        !parsed.status ||
+        !Array.isArray(parsed.recommended_herbs) ||
+        !Array.isArray(parsed.caution_herbs) ||
+        !Array.isArray(parsed.avoid_herbs)
+      ) {
+        throw new Error("Invalid assessment structure");
+      }
+
       setResult(parsed);
       trackEvent("assessment_viewed", {
         recommended: parsed.recommended_herbs.length,
@@ -75,6 +87,8 @@ export default function ResultsPage() {
         avoid: parsed.avoid_herbs.length,
       });
     } catch {
+      // clear corrupted data so user doesn't loop
+      sessionStorage.removeItem("ayurv_result");
       router.replace("/intake");
     } finally {
       setLoading(false);
