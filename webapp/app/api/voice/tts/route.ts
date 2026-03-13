@@ -105,9 +105,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("TTS error:", err);
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("timeout") || msg.includes("Timeout")) {
+      return NextResponse.json(
+        { error: "Voice service timed out. Please try again." },
+        { status: 504, headers: { "Retry-After": "5" } }
+      );
+    }
     return NextResponse.json(
       { error: "TTS service unavailable" },
-      { status: 503 }
+      { status: 503, headers: { "Retry-After": "10" } }
     );
   }
 }

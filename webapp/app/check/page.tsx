@@ -294,6 +294,8 @@ export default function InteractionCheckerPage() {
           {/* copy result button */}
           <div className="mt-3 flex justify-end">
             <button
+              type="button"
+              aria-live="polite"
               onClick={async () => {
                 if (!result) return;
                 const herbName = result.herb_name || result.herb1?.name || "Herb";
@@ -307,11 +309,12 @@ export default function InteractionCheckerPage() {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
-                copied ? "bg-risk-green text-white" : "text-gray-500 hover:text-ayurv-primary hover:bg-gray-50"
+              disabled={copied}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-all ${
+                copied ? "bg-risk-green text-white shadow-sm" : "text-gray-500 hover:text-ayurv-primary hover:bg-gray-50"
               }`}
             >
-              {copied ? "Copied!" : "Copy Result"}
+              {copied ? "\u2713 Copied to clipboard" : "Copy Result"}
             </button>
           </div>
 
