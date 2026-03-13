@@ -64,6 +64,7 @@ export default function LandingPage() {
   });
 
   const [savedProfile, setSavedProfile] = useState<{ assessments: number } | null>(null);
+  const [totalAssessments, setTotalAssessments] = useState(0);
 
   // check for returning user — fetch from backend
   useEffect(() => {
@@ -88,6 +89,11 @@ export default function LandingPage() {
         setSavedProfile({ assessments: assessmentCount });
       }
     });
+
+    // total assessment count for social proof
+    fetch("/api/stats").then(r => r.json()).then(d => {
+      if (d.count > 0) setTotalAssessments(d.count);
+    }).catch(() => {});
   }, []);
 
   const allChecked = DISCLAIMER_CHECKS.every((c) => checks[c.id]);
@@ -161,6 +167,12 @@ export default function LandingPage() {
 
         {/* Trust signals */}
         <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6 text-sm text-ayurv-muted">
+          {totalAssessments > 0 && (
+            <span className="flex items-center gap-1.5 font-medium text-ayurv-primary">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
+              {totalAssessments.toLocaleString()} assessments done
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
             50 herbs verified

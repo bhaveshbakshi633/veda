@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
+import MobileNav from "@/components/MobileNav";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -23,11 +24,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "Ayurv",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Ayurv — Herb Safety Intelligence" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Ayurv — Herb Safety Intelligence",
     description: "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
+    images: ["/og-image.png"],
   },
   icons: {
     icon: "/favicon.svg",
@@ -69,13 +72,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </span>
               <Link
                 href="/history"
-                className="flex items-center gap-1.5 text-xs text-green-200/80 hover:text-white transition-colors"
+                className="hidden sm:flex items-center gap-1.5 text-xs text-green-200/80 hover:text-white transition-colors"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
-                <span className="hidden sm:inline">My Data</span>
+                My Data
               </Link>
+              <MobileNav />
             </div>
           </div>
         </header>
