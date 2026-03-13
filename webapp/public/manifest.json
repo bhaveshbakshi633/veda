@@ -1,12 +1,15 @@
 {
   "name": "Ayurv — Herb Safety Intelligence",
   "short_name": "Ayurv",
-  "description": "Check if an Ayurvedic herb is safe for you",
+  "description": "Check if an Ayurvedic herb is safe for you — based on conditions, medications, and clinical evidence",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8faf8",
   "theme_color": "#1E3A2F",
   "orientation": "portrait",
+  "lang": "en-IN",
+  "categories": ["health", "medical"],
+  "scope": "/",
   "icons": [
     {
       "src": "/icon-192.png",

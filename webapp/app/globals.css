@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* prevent browser forced dark mode */
+html {
+  color-scheme: light;
+}
+
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
