@@ -4,6 +4,8 @@ import Link from "next/link";
 import "./globals.css";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,6 +31,13 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.svg",
+    apple: "/icon-192.png",
+  },
+  manifest: "/manifest.json",
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
   },
 };
 
@@ -76,6 +85,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </main>
 
         <DisclaimerFooter />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -34,6 +34,11 @@ import type { RiskAssessment } from "@/lib/types";
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 const MODEL = process.env.OLLAMA_MODEL || "gemma2:9b";
 
+// Groq fallback — free tier, used when Ollama is unreachable
+const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 // ============================================
 // IN-MEMORY STATE (per session)
 // ============================================
@@ -416,33 +421,64 @@ interface ChatMessage {
   content: string;
 }
 
-async function callOllama(system: string, messages: ChatMessage[], numPredict: number = 1024): Promise<string> {
-  const ollamaMessages: ChatMessage[] = [
-    { role: "system", content: system },
-    ...messages,
-  ];
+async function callGroq(system: string, messages: ChatMessage[], maxTokens: number = 1024): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("No GROQ_API_KEY configured");
 
-  const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+  const res = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "ngrok-skip-browser-warning": "true",
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: MODEL,
-      messages: ollamaMessages,
-      stream: false,
-      options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
+      model: GROQ_MODEL,
+      messages: [{ role: "system", content: system }, ...messages],
+      temperature: 0.35,
+      max_tokens: maxTokens,
+      top_p: 0.9,
     }),
   });
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Ollama error ${res.status}: ${errText}`);
+    throw new Error(`Groq error ${res.status}: ${errText}`);
   }
 
   const data = await res.json();
-  return data.message?.content || "";
+  return data.choices?.[0]?.message?.content || "";
+}
+
+async function callLLM(system: string, messages: ChatMessage[], numPredict: number = 1024): Promise<string> {
+  // try Ollama first
+  try {
+    const ollamaMessages: ChatMessage[] = [
+      { role: "system", content: system },
+      ...messages,
+    ];
+
+    const res = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: ollamaMessages,
+        stream: false,
+        options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!res.ok) throw new Error(`Ollama ${res.status}`);
+
+    const data = await res.json();
+    return data.message?.content || "";
+  } catch (ollamaErr) {
+    console.warn("Ollama failed, trying Groq fallback:", ollamaErr instanceof Error ? ollamaErr.message : ollamaErr);
+    return callGroq(system, messages, numPredict);
+  }
 }
 
 // streaming response — returns SSE Response
@@ -464,28 +500,59 @@ function createStreamResponse(
           ...messages,
         ];
 
-        const res = await fetch(`${OLLAMA_URL}/api/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "ngrok-skip-browser-warning": "true",
-          },
-          body: JSON.stringify({
-            model: MODEL,
-            messages: ollamaMessages,
-            stream: true,
-            options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
-          }),
-        });
+        let res: globalThis.Response;
+        let useGroqFallback = false;
 
-        if (!res.ok) {
-          const errText = await res.text();
+        try {
+          res = await fetch(`${OLLAMA_URL}/api/chat`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "ngrok-skip-browser-warning": "true",
+            },
+            body: JSON.stringify({
+              model: MODEL,
+              messages: ollamaMessages,
+              stream: true,
+              options: { temperature: 0.35, num_predict: numPredict, repeat_penalty: 1.1, top_p: 0.9, top_k: 40 },
+            }),
+            signal: AbortSignal.timeout(30000),
+          });
+
+          if (!res.ok) throw new Error(`Ollama ${res.status}`);
+        } catch (ollamaErr) {
+          console.warn("Ollama stream failed, falling back to Groq:", ollamaErr instanceof Error ? ollamaErr.message : ollamaErr);
+          useGroqFallback = true;
+
+          // Groq non-streaming fallback — send as single token
+          if (GROQ_API_KEY) {
+            try {
+              const groqText = await callGroq(system, messages, numPredict);
+              const enforcement = enforceResponse(groqText, state, toolsCalled);
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: "token", content: enforcement.sanitized_response })}\n\n`
+              ));
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: "done", tools_called: toolsCalled })}\n\n`
+              ));
+            } catch (groqErr) {
+              controller.enqueue(encoder.encode(
+                `data: ${JSON.stringify({ type: "error", content: `LLM unavailable: ${groqErr instanceof Error ? groqErr.message : "unknown"}` })}\n\n`
+              ));
+            }
+            sessionStates.set(sessionId, state);
+            controller.close();
+            return;
+          }
+
           controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: "error", content: `Ollama error ${res.status}: ${errText}` })}\n\n`
+            `data: ${JSON.stringify({ type: "error", content: "LLM service unavailable. Please try again later." })}\n\n`
           ));
           controller.close();
           return;
         }
+
+        if (useGroqFallback) { controller.close(); return; }
 
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
@@ -756,7 +823,7 @@ export async function POST(request: NextRequest) {
         return createStreamResponse(sys, initMessages, state, session_id, ["getUserProfile", "assessmentPresentation"], numPredict);
       }
 
-      let responseText = await callOllama(initSystem, initMessages, numPredict);
+      let responseText = await callLLM(initSystem, initMessages, numPredict);
       const enforcement = enforceResponse(responseText, state, ["getUserProfile"]);
       responseText = enforcement.sanitized_response;
 
@@ -797,7 +864,7 @@ export async function POST(request: NextRequest) {
       return createStreamResponse(sys, ollamaMessages, state, session_id, ctx.toolsCalled, numPredict);
     }
 
-    let responseText = await callOllama(enrichedSystem, ollamaMessages, numPredict);
+    let responseText = await callLLM(enrichedSystem, ollamaMessages, numPredict);
     const enforcement = enforceResponse(responseText, state, ctx.toolsCalled);
     responseText = enforcement.sanitized_response;
 
