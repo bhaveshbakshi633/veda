@@ -4,8 +4,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 let _anonClient: SupabaseClient | null = null;
 
 function getEnv() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
   if (!url || !anonKey) {
     throw new Error(
       "Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
@@ -33,7 +33,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
 // Server-side Supabase client (service role — bypasses RLS, used in API routes only)
 export function getServiceClient() {
   const { url } = getEnv();
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if (!serviceKey) {
     throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY for server operations.");
   }

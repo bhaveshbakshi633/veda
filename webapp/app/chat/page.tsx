@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { RiskAssessment } from "@/lib/types";
+import { trackEvent } from "@/lib/track";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,6 +27,7 @@ export default function ChatPage() {
   const [escalated, setEscalated] = useState(false);
   const [assessment, setAssessment] = useState<RiskAssessment | null>(null);
   const [initDone, setInitDone] = useState(false);
+  const [restoredFromCache, setRestoredFromCache] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -46,7 +48,20 @@ export default function ChatPage() {
     setSttSupported(hasStt);
   }, []);
 
-  // ─── Init: load assessment and send __INIT__ ───
+  // ─── Save chat history to localStorage on message changes ───
+  useEffect(() => {
+    if (!sessionId || messages.length === 0 || !initDone) return;
+    // sirf completed messages save karo (non-empty content wale)
+    const toSave = messages.filter(m => m.content.trim());
+    if (toSave.length > 0) {
+      try {
+        localStorage.setItem(`ayurv_chat_${sessionId}`, JSON.stringify(toSave));
+        localStorage.setItem("ayurv_chat_session_id", sessionId);
+      } catch { /* localStorage full — ignore */ }
+    }
+  }, [messages, sessionId, initDone]);
+
+  // ─── Init: load assessment and restore/init chat ───
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
     if (!disc) { router.replace("/"); return; }
@@ -59,6 +74,22 @@ export default function ChatPage() {
       if (parsed.session_id) {
         setSessionId(parsed.session_id);
         setAssessment(parsed);
+
+        // try restoring cached chat for this session
+        const cached = localStorage.getItem(`ayurv_chat_${parsed.session_id}`);
+        if (cached) {
+          try {
+            const cachedMessages = JSON.parse(cached) as Message[];
+            if (cachedMessages.length > 0) {
+              setMessages(cachedMessages);
+              setInitDone(true);
+              setRestoredFromCache(true);
+              trackEvent("chat_restored", { messages_count: cachedMessages.length });
+              return;
+            }
+          } catch { /* corrupt cache — ignore, fresh init */ }
+        }
+
         sendInitStreaming(parsed);
       }
     } catch { router.replace("/intake"); }
@@ -173,6 +204,7 @@ export default function ChatPage() {
     if (!text.trim() || !sid || sending) return;
 
     const userMsg: Message = { role: "user", content: text.trim() };
+    trackEvent("chat_message_sent", { message_number: currentHistory.filter(m => m.role === "user").length + 1 });
     const updatedMessages = [...currentHistory, userMsg];
     const assistantIdx = updatedMessages.length;
     setMessages([...updatedMessages, { role: "assistant", content: "" }]);
@@ -312,7 +344,7 @@ export default function ChatPage() {
     })();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = "hi-IN";
+    recognition.lang = language === "hi" ? "hi-IN" : "en-IN";
 
     return recognition;
   }
@@ -349,6 +381,7 @@ export default function ChatPage() {
       stopListening();
       stopSpeaking();
     }
+    trackEvent("voice_mode_toggled", { enabled: !voiceMode });
     setVoiceMode(!voiceMode);
   }
 
@@ -405,7 +438,11 @@ export default function ChatPage() {
           <div className="flex gap-1.5 items-center shrink-0">
             {/* language toggle */}
             <button
-              onClick={() => setLanguage(l => l === "en" ? "hi" : "en")}
+              onClick={() => {
+                const next = language === "en" ? "hi" : "en";
+                setLanguage(next);
+                trackEvent("language_changed", { to: next });
+              }}
               className={`px-2 py-1.5 rounded-lg text-[11px] font-bold transition-all border ${
                 language === "hi"
                   ? "bg-orange-50 text-orange-600 border-orange-200"
@@ -442,6 +479,9 @@ export default function ChatPage() {
             <button
               onClick={() => {
                 if (window.confirm("Start a new assessment?")) {
+                  // purana chat history bhi hata do
+                  if (sessionId) localStorage.removeItem(`ayurv_chat_${sessionId}`);
+                  localStorage.removeItem("ayurv_chat_session_id");
                   sessionStorage.removeItem("ayurv_result");
                   router.push("/intake");
                 }
@@ -545,6 +585,18 @@ export default function ChatPage() {
             </div>
           </div>
         ))}
+
+        {/* restored from cache indicator */}
+        {restoredFromCache && messages.length > 0 && (
+          <div className="text-center py-1 animate-fade-in">
+            <span className="inline-flex items-center gap-1.5 text-[11px] text-gray-400 bg-gray-50 px-3 py-1 rounded-full">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Previous conversation restored
+            </span>
+          </div>
+        )}
 
         {/* suggestion chips */}
         {!sending && initDone && messages.filter(m => m.role === "user").length === 0 && (

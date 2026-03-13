@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getOrCreateUid, hasAcceptedDisclaimer, saveDisclaimerAccepted } from "@/lib/storage";
+import { trackEvent } from "@/lib/track";
 
 const DISCLAIMER_CHECKS = [
   {
@@ -103,11 +104,45 @@ export default function LandingPage() {
       JSON.stringify({ accepted: true, timestamp: ts, version: "v1.0", checks })
     );
     saveDisclaimerAccepted();
+    trackEvent("disclaimer_accepted");
     router.push("/intake");
   }
 
+  // JSON-LD structured data — Google rich results ke liye
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        name: "Ayurv",
+        url: "https://webapp-self-rho.vercel.app",
+        applicationCategory: "HealthApplication",
+        operatingSystem: "Web",
+        description: "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+        featureList: "50 herb safety profiles, Drug interaction checks, Evidence-graded claims, Personalized risk assessment",
+      },
+      {
+        "@type": "HowTo",
+        name: "How to Check Ayurvedic Herb Safety",
+        description: "Check if an Ayurvedic herb is safe for you in under 2 minutes.",
+        step: [
+          { "@type": "HowToStep", position: 1, name: "Tell us about you", text: "Age, conditions, medications — a quick health snapshot." },
+          { "@type": "HowToStep", position: 2, name: "We check safety", text: "Cross-reference herbs against your profile and clinical evidence." },
+          { "@type": "HowToStep", position: 3, name: "Chat with your consultant", text: "Get personalised recommendations, ask follow-ups, and understand your safety report." },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
+      {/* JSON-LD — structured data for search engines */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* ---- Hero Section ---- */}
       <section className="text-center mb-12 animate-fade-in">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-ayurv-primary/5 border border-ayurv-primary/10 rounded-full text-xs font-medium text-ayurv-primary mb-6">

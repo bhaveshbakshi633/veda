@@ -8,6 +8,7 @@ import WarningBanner from "@/components/WarningBanner";
 import EvidenceDrawer from "@/components/EvidenceDrawer";
 import DoctorCard from "@/components/DoctorCard";
 import DownloadReport from "@/components/DownloadReport";
+import { trackEvent } from "@/lib/track";
 import {
   RecommendedHerbCard,
   CautionHerbCard,
@@ -64,6 +65,11 @@ export default function ResultsPage() {
     try {
       const parsed = JSON.parse(stored) as RiskAssessment;
       setResult(parsed);
+      trackEvent("assessment_viewed", {
+        recommended: parsed.recommended_herbs.length,
+        caution: parsed.caution_herbs.length,
+        avoid: parsed.avoid_herbs.length,
+      });
     } catch {
       router.replace("/intake");
     } finally {
@@ -261,6 +267,7 @@ export default function ResultsPage() {
               const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe herbs: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck your herbs: https://webapp-self-rho.vercel.app`;
               const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
               window.open(url, "_blank");
+              trackEvent("report_shared", { method: "whatsapp" });
             }}
             className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors flex items-center gap-1.5"
           >
@@ -274,8 +281,10 @@ export default function ResultsPage() {
               const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck yours: https://webapp-self-rho.vercel.app`;
               if (navigator.share) {
                 await navigator.share({ title: "Ayurv Safety Report", text });
+                trackEvent("report_shared", { method: "native_share" });
               } else {
                 await navigator.clipboard.writeText(text);
+                trackEvent("report_shared", { method: "clipboard" });
                 alert("Report copied to clipboard!");
               }
             }}
@@ -286,6 +295,7 @@ export default function ResultsPage() {
           </button>
           <button
             onClick={() => {
+              trackEvent("new_assessment_started", { from: "results" });
               sessionStorage.removeItem("ayurv_result");
               router.push("/intake");
             }}

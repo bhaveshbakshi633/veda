@@ -92,7 +92,7 @@ interface AyurvedicProfile {
   guna?: string[];
   virya?: string;
   vipaka?: string;
-  dosha_action?: string;
+  dosha_action?: string | Record<string, { effect: string; strength: string }>;
 }
 
 interface SideEffects {
@@ -224,7 +224,7 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
             {names.hindi} &middot; {names.sanskrit} &middot; <em className="text-gray-400">{botanical_name}</em>
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
-            {parts_used.map((part) => (
+            {(parts_used || []).map((part) => (
               <span key={part} className="px-2.5 py-1 text-xs font-medium bg-ayurv-primary/5 text-ayurv-primary rounded-full border border-ayurv-primary/10">
                 {part}
               </span>
@@ -329,7 +329,13 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
                 {ayurvedic_profile.dosha_action && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Dosha Action</span>
-                    <span className="text-gray-800 font-medium">{ayurvedic_profile.dosha_action}</span>
+                    <span className="text-gray-800 font-medium">
+                      {typeof ayurvedic_profile.dosha_action === "string"
+                        ? ayurvedic_profile.dosha_action
+                        : Object.entries(ayurvedic_profile.dosha_action as Record<string, { effect: string; strength: string }>)
+                            .map(([dosha, info]) => `${dosha}: ${info.effect}`)
+                            .join(", ")}
+                    </span>
                   </div>
                 )}
               </div>
