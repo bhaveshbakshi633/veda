@@ -85,6 +85,14 @@ export default function EmergencyOverlay({
           >
             Call Emergency: 112
           </a>
+          <a
+            href="https://www.google.com/maps/search/hospital+near+me"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-3 bg-white border-2 border-risk-red text-risk-red font-semibold rounded-lg hover:bg-red-50 transition-colors"
+          >
+            Find Nearest Hospital
+          </a>
           <div className="text-gray-500 text-xs space-y-1">
             <p>India Crisis Helplines:</p>
             <p>

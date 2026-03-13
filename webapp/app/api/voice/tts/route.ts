@@ -50,19 +50,25 @@ export async function POST(request: NextRequest) {
       (detectLanguage(text) === "hi" ? VOICES.hi_female : VOICES.en_female);
 
     const tts = new MsEdgeTTS();
-    await tts.setMetadata(
-      selectedVoice,
-      OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3
-    );
+
+    // 15s timeout for voice metadata setup
+    await Promise.race([
+      tts.setMetadata(
+        selectedVoice,
+        OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3
+      ),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Voice service timeout")), 15000)
+      ),
+    ]);
 
     const cleaned = cleanText(text);
 
-    // toStream returns { audioStream, metadataStream }
     // rate as fraction: 0.5 = half speed, 1.5 = 1.5x, 1.0 = normal
     const rateNum = rate ? 1.0 + parseInt(rate.replace(/[^-\d]/g, "") || "0") / 100 : 1.0;
     const { audioStream } = tts.toStream(cleaned, { rate: rateNum });
 
-    // collect audio chunks via Node.js stream events
+    // collect audio chunks via Node.js stream events (30s timeout)
     const audioBuffer = await new Promise<Buffer>((resolve, reject) => {
       const chunks: Buffer[] = [];
       audioStream.on("data", (chunk: Buffer) => chunks.push(chunk));
