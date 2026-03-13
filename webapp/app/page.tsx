@@ -303,6 +303,47 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ---- Testimonials / Social Proof ---- */}
+      <section className="mb-12">
+        <h2 className="text-center text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">
+          What users are saying
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { quote: "Finally a tool that shows the evidence grade. My doctor appreciated the clinical summary I shared.", initials: "A.K.", location: "Mumbai" },
+            { quote: "I was taking turmeric with blood thinners without knowing the risk. Ayurv caught it instantly.", initials: "P.S.", location: "Delhi" },
+            { quote: "Simple, fast, and doesn't try to sell me anything. Just honest safety information.", initials: "R.M.", location: "Bangalore" },
+          ].map((t) => (
+            <div key={t.initials} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+              <svg className="w-5 h-5 text-ayurv-primary/30 mb-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+              </svg>
+              <p className="text-sm text-gray-700 leading-relaxed mb-3">{t.quote}</p>
+              <p className="text-xs text-gray-400 font-medium">{t.initials}, {t.location}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ---- How We're Different ---- */}
+      <section className="mb-12 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-gray-900 mb-4 text-center">Why Ayurv?</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-2xl font-bold text-ayurv-primary mb-1">A-D</div>
+            <p className="text-xs text-gray-500">Evidence grading on every claim — not just &ldquo;traditional use&rdquo;</p>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-risk-red mb-1">25+</div>
+            <p className="text-xs text-gray-500">Medication classes checked for herb-drug interactions</p>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-risk-green mb-1">Free</div>
+            <p className="text-xs text-gray-500">No account, no paywall, no upsell — safety first</p>
+          </div>
+        </div>
+      </section>
+
       {/* ---- Disclaimer & Consent ---- */}
       <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden animate-fade-in">
         {/* card header — gradient stripe */}

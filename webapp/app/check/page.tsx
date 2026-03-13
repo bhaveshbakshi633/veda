@@ -67,6 +67,7 @@ export default function InteractionCheckerPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<InteractionResult | null>(null);
   const [checked, setChecked] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   async function handleCheck() {
     if (!herb || !target) return;
@@ -260,8 +261,32 @@ export default function InteractionCheckerPage() {
             </div>
           )}
 
+          {/* copy result button */}
+          <div className="mt-3 flex justify-end">
+            <button
+              onClick={async () => {
+                if (!result) return;
+                const herbName = result.herb_name || result.herb1?.name || "Herb";
+                const targetName = mode === "herb_med"
+                  ? MEDICATIONS.find(m => m.id === target)?.label || target
+                  : result.herb2?.name || target;
+                const text = result.has_interaction && result.interaction
+                  ? `Ayurv Interaction Check\n\n${herbName} + ${targetName}\nSeverity: ${result.interaction.severity}\nMechanism: ${result.interaction.mechanism}\nAction: ${result.interaction.clinical_action}\n\nEducational only — discuss with your doctor.`
+                  : `Ayurv Interaction Check\n\n${herbName} + ${targetName}\nNo known interaction found.\n\nEducational only — discuss with your doctor.`;
+                await navigator.clipboard.writeText(text);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                copied ? "bg-risk-green text-white" : "text-gray-500 hover:text-ayurv-primary hover:bg-gray-50"
+              }`}
+            >
+              {copied ? "Copied!" : "Copy Result"}
+            </button>
+          </div>
+
           {/* full profile CTA */}
-          <div className="mt-4 bg-white border border-gray-200 rounded-xl p-4 text-center">
+          <div className="mt-3 bg-white border border-gray-200 rounded-xl p-4 text-center">
             <p className="text-sm text-gray-600 mb-3">
               Want a complete safety check against your full health profile?
             </p>

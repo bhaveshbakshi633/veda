@@ -62,7 +62,20 @@ input:focus, select:focus, textarea:focus {
   .rounded-2xl, .rounded-xl { border-radius: 8px !important; }
   .shadow-sm, .shadow-md, .shadow-lg { box-shadow: none !important; }
   a { color: inherit !important; text-decoration: none !important; }
+  /* herb cards should not break across pages */
+  .card-hover { break-inside: avoid; page-break-inside: avoid; }
+  /* tables print in landscape if needed */
+  table { font-size: 10pt !important; }
   @page { margin: 1.5cm; }
+}
+
+/* mobile bottom bar slide-up */
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
 }
 
 /* scrollbar chhupane ke liye — horizontal scroll chips mein use hota hai */
