@@ -101,8 +101,29 @@ const SAFETY_FEATURES = [
   },
 ];
 
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: "Ayurv",
+  applicationCategory: "HealthApplication",
+  operatingSystem: "Web",
+  description: "Evidence-based Ayurvedic herb safety checker with drug interaction database and clinical evidence grading.",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+  featureList: [
+    "A-D evidence grading for herb claims",
+    "Drug interaction checking for 25+ medication classes",
+    "Personalized safety assessment based on health profile",
+    "AI-powered herb consultation",
+  ],
+};
+
 export default function AboutPage() {
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     <div className="max-w-3xl mx-auto">
       {/* breadcrumb nav */}
       <nav className="text-xs text-gray-400 mb-4 flex items-center gap-1.5">
@@ -435,5 +456,6 @@ export default function AboutPage() {
         </Link>
       </div>
     </div>
+    </>
   );
 }
