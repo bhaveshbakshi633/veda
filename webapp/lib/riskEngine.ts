@@ -911,7 +911,13 @@ export async function runAssessment(
       caution_herbs: [],
       avoid_herbs: [],
       total_relevant: 0,
-      doctor_referral_suggested: false,
+      doctor_referral_suggested: true,
+      no_match_reason: `We don't have sufficient clinical evidence for herbs targeting "${concernLabel}" in our current database. This doesn't mean herbs can't help — it means we only recommend when we have strong evidence.`,
+      no_match_next_steps: [
+        "Consult an Ayurvedic practitioner about your specific concern",
+        "Browse our herb library to explore what's available",
+        "Try the interaction checker to verify safety of herbs you're considering",
+      ],
       audit_trail: allAudit,
     };
   }

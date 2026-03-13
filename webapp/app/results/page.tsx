@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { RiskAssessment } from "@/lib/types";
 import EmergencyOverlay from "@/components/EmergencyOverlay";
 import WarningBanner from "@/components/WarningBanner";
@@ -188,25 +189,50 @@ export default function ResultsPage() {
 
       {/* 4. NO MATCHES state */}
       {result.status === "NO_MATCHES" && (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center mb-8">
-          <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">
-            No herbs found for {result.concern_label}
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Our database doesn&apos;t have clinical evidence linking herbs to this specific concern yet.
-          </p>
-          <button
-            onClick={() => {
-              sessionStorage.removeItem("ayurv_result");
-              router.push("/intake");
-            }}
-            className="px-6 py-2.5 bg-ayurv-primary text-white rounded-xl text-sm font-semibold hover:bg-ayurv-secondary transition-colors"
-          >
-            Try a Different Concern
-          </button>
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 mb-8">
+          <div className="text-center mb-5">
+            <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+            </svg>
+            <h2 className="text-lg font-semibold text-gray-700 mb-2">
+              No herbs found for {result.concern_label}
+            </h2>
+            <p className="text-sm text-gray-500">
+              {result.no_match_reason || "Our database doesn't have clinical evidence linking herbs to this specific concern yet."}
+            </p>
+          </div>
+
+          {result.no_match_next_steps && result.no_match_next_steps.length > 0 && (
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-5 text-left">
+              <p className="text-xs font-semibold text-blue-800 mb-2">What you can do:</p>
+              <ul className="space-y-1.5">
+                {result.no_match_next_steps.map((step, i) => (
+                  <li key={i} className="text-xs text-blue-700 flex items-start gap-2">
+                    <span className="font-bold text-blue-500 mt-px">{i + 1}.</span>
+                    {step}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => {
+                sessionStorage.removeItem("ayurv_result");
+                router.push("/intake");
+              }}
+              className="px-6 py-2.5 bg-ayurv-primary text-white rounded-xl text-sm font-semibold hover:bg-ayurv-secondary transition-colors"
+            >
+              Try a Different Concern
+            </button>
+            <Link
+              href="/herbs"
+              className="px-6 py-2.5 border border-ayurv-primary/20 text-ayurv-primary rounded-xl text-sm font-semibold hover:bg-ayurv-primary/5 transition-colors text-center"
+            >
+              Browse Herb Library
+            </Link>
+          </div>
         </div>
       )}
 

@@ -315,5 +315,7 @@ export interface RiskAssessment {
   avoid_herbs: AvoidRecommendation[];
   total_relevant: number;
   doctor_referral_suggested: boolean;
+  no_match_reason?: string;
+  no_match_next_steps?: string[];
   audit_trail: AuditEntry[];
 }

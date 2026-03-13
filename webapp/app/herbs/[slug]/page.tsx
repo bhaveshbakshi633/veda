@@ -293,20 +293,38 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
           {dosage_ranges?.forms?.length > 0 && (
             <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-3">Standard Dosage</h2>
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {dosage_ranges.forms.map((form, i) => (
-                  <div key={i} className="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                    <span className="text-sm font-medium text-gray-700 capitalize">{form.form}</span>
-                    <span className="text-sm text-ayurv-primary font-semibold">
-                      {form.range_min}–{form.range_max} {form.unit}
-                    </span>
+                  <div key={i} className="border-b border-gray-50 last:border-0 pb-3 last:pb-0">
+                    <div className="flex justify-between items-start mb-0.5">
+                      <span className="text-sm font-semibold text-gray-900 capitalize">{form.form}</span>
+                      <span className="text-sm text-ayurv-primary font-bold">
+                        {form.range_min}–{form.range_max} {form.unit}
+                      </span>
+                    </div>
+                    {form.notes && (
+                      <p className="text-xs text-gray-500 italic">{form.notes}</p>
+                    )}
                   </div>
                 ))}
               </div>
               {dosage_ranges.time_to_effect && (
-                <p className="text-xs text-gray-400 mt-3">Time to effect: {dosage_ranges.time_to_effect}</p>
+                <div className="bg-ayurv-primary/5 border border-ayurv-primary/10 rounded-lg p-3 mt-4">
+                  <p className="text-xs font-semibold text-gray-700 mb-0.5">Expected timeline</p>
+                  <p className="text-xs text-gray-600">
+                    {typeof dosage_ranges.time_to_effect === "object"
+                      ? Object.entries(dosage_ranges.time_to_effect).map(([k, v]) => `${k}: ${v}`).join(" · ")
+                      : String(dosage_ranges.time_to_effect)
+                    }
+                  </p>
+                </div>
               )}
-              <p className="text-xs text-gray-400 mt-1 italic">{dosage_ranges.disclaimer}</p>
+              {dosage_ranges.max_studied_duration_weeks && (
+                <p className="text-xs text-gray-500 mt-3">
+                  Clinical studies cover use up to {dosage_ranges.max_studied_duration_weeks} weeks.
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-2 italic">{dosage_ranges.disclaimer}</p>
             </section>
           )}
 
