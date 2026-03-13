@@ -130,6 +130,7 @@ export default function ResultsPage() {
   );
   const showDoctorCard =
     result.doctor_referral_suggested || hasMedInteractions;
+  const hasNoWarnings = result.caution_herbs.length === 0 && result.avoid_herbs.length === 0;
 
   function handleEvidenceClick(herbId: string, herbName: string) {
     setDrawerHerb({ id: herbId, name: herbName });
@@ -221,6 +222,14 @@ export default function ResultsPage() {
             </svg>
             Recommended For You
           </h2>
+          {hasNoWarnings && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-full mb-2">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              No drug interactions or contraindications detected
+            </span>
+          )}
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-500">
               No known contraindications for your profile. Ranked by evidence strength (A = strongest clinical evidence, D = preliminary).

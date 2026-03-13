@@ -188,24 +188,43 @@ export default function HerbsIndexPage() {
           })}
         </div>
       ) : (
-        // no results state — thoda friendly message
-        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center">
-          <div className="text-3xl mb-3">🌿</div>
-          <h3 className="text-sm font-semibold text-gray-700 mb-1">
-            No herbs found
-          </h3>
-          <p className="text-xs text-gray-500 mb-4">
-            Try a different search term or change the category filter.
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setActiveCategory("All");
-            }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-ayurv-primary bg-ayurv-primary/10 rounded-lg hover:bg-ayurv-primary/15 transition-colors"
-          >
-            Clear all filters
-          </button>
+        // no results state — scope-aware messaging
+        <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8">
+          <div className="text-center mb-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">
+              No herbs found
+            </h3>
+            <p className="text-xs text-gray-500">
+              {activeCategory !== "All"
+                ? `No herbs matched in "${activeCategory}". Try a different category.`
+                : searchQuery.trim()
+                  ? `No herbs match "${searchQuery.trim()}". Our database currently covers the most common Ayurvedic herbs with clinical evidence.`
+                  : "Try a different search term or change the category filter."
+              }
+            </p>
+          </div>
+
+          {searchQuery.trim().length > 0 && (
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-4 text-left">
+              <p className="text-xs text-blue-700 font-medium mb-1">Search tips:</p>
+              <ul className="text-xs text-blue-600 space-y-0.5">
+                <li>Try the English or Hindi name (e.g. &quot;turmeric&quot; or &quot;haldi&quot;)</li>
+                <li>Use the category filter to browse by use case</li>
+              </ul>
+            </div>
+          )}
+
+          <div className="text-center">
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setActiveCategory("All");
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-ayurv-primary bg-ayurv-primary/10 rounded-lg hover:bg-ayurv-primary/15 transition-colors"
+            >
+              View all herbs
+            </button>
+          </div>
         </div>
       )}
 
