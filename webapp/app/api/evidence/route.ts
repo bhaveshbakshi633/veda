@@ -22,9 +22,9 @@ const VALID_HERB_IDS = [
 ];
 
 export async function GET(request: NextRequest) {
-  const herbId = request.nextUrl.searchParams.get("herb_id");
+  const herbId = request.nextUrl.searchParams.get("herb_id")?.trim();
 
-  if (!herbId || !VALID_HERB_IDS.includes(herbId)) {
+  if (!herbId || herbId.length === 0 || !VALID_HERB_IDS.includes(herbId)) {
     return NextResponse.json(
       { error: "Invalid or missing herb_id parameter" },
       { status: 400 }

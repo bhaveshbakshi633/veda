@@ -17,15 +17,15 @@ export default function DisclaimerFooter() {
           Educational information only — not medical advice. Always consult a qualified healthcare practitioner.
         </p>
         <div className="flex items-center gap-3 text-[11px] text-gray-400 shrink-0">
-          <Link href="/faq" className="hover:text-ayurv-primary transition-colors">FAQ</Link>
+          <Link href="/faq" aria-label="Frequently asked questions" className="hover:text-ayurv-primary transition-colors">FAQ</Link>
           <span className="text-gray-300">&middot;</span>
-          <Link href="/herbs" className="hover:text-ayurv-primary transition-colors">Herbs</Link>
+          <Link href="/herbs" aria-label="Browse herb database" className="hover:text-ayurv-primary transition-colors">Herbs</Link>
           <span className="text-gray-300">&middot;</span>
-          <Link href="/about" className="hover:text-ayurv-primary transition-colors">About</Link>
+          <Link href="/about" aria-label="About Ayurv" className="hover:text-ayurv-primary transition-colors">About</Link>
           <span className="text-gray-300">&middot;</span>
-          <Link href="/privacy" className="hover:text-ayurv-primary transition-colors">Privacy</Link>
+          <Link href="/privacy" aria-label="Privacy policy" className="hover:text-ayurv-primary transition-colors">Privacy</Link>
           <span className="text-gray-300">&middot;</span>
-          <Link href="/terms" className="hover:text-ayurv-primary transition-colors">Terms</Link>
+          <Link href="/terms" aria-label="Terms and conditions" className="hover:text-ayurv-primary transition-colors">Terms</Link>
         </div>
       </div>
     </footer>
