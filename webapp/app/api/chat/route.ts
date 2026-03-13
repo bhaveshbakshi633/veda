@@ -776,6 +776,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // input bounds — prevent abuse
+    if (typeof message !== "string" || message.length > 10000) {
+      return NextResponse.json(
+        { error: "Message limited to 10,000 characters" },
+        { status: 400 }
+      );
+    }
+    if (!Array.isArray(history) || history.length > 50) {
+      return NextResponse.json(
+        { error: "History limited to 50 messages" },
+        { status: 400 }
+      );
+    }
+
     // ─── Red flag pre-scan ───
     if (message !== "__INIT__") {
       const redFlagScan = scanUserMessageForRedFlags(message);

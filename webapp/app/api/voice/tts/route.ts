@@ -41,8 +41,19 @@ export async function POST(request: NextRequest) {
       rate?: string;
     };
 
-    if (!text) {
+    if (!text || typeof text !== "string" || text.length === 0) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
+    }
+    if (text.length > 5000) {
+      return NextResponse.json({ error: "Text limited to 5000 characters" }, { status: 400 });
+    }
+
+    // validate rate — must be in [-50, 50] range
+    if (rate) {
+      const rateVal = parseInt(rate.replace(/[^-\d]/g, "") || "0", 10);
+      if (isNaN(rateVal) || Math.abs(rateVal) > 50) {
+        return NextResponse.json({ error: "Rate must be between -50 and +50" }, { status: 400 });
+      }
     }
 
     const selectedVoice =
