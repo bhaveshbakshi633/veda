@@ -8,6 +8,8 @@ import WarningBanner from "@/components/WarningBanner";
 import EvidenceDrawer from "@/components/EvidenceDrawer";
 import DoctorCard from "@/components/DoctorCard";
 import DownloadReport from "@/components/DownloadReport";
+import EmailCapture from "@/components/EmailCapture";
+import HerbCompare from "@/components/HerbCompare";
 import { trackEvent } from "@/lib/track";
 import {
   RecommendedHerbCard,
@@ -180,9 +182,14 @@ export default function ResultsPage() {
             </svg>
             Recommended For You
           </h2>
-          <p className="text-xs text-gray-500 mb-3">
-            Safe for your profile, ranked by strength of clinical evidence for {result.concern_label.toLowerCase()}.
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-gray-500">
+              Safe for your profile, ranked by strength of clinical evidence for {result.concern_label.toLowerCase()}.
+            </p>
+            {result.recommended_herbs.length + result.caution_herbs.length >= 2 && (
+              <HerbCompare herbs={[...result.recommended_herbs, ...result.caution_herbs]} />
+            )}
+          </div>
           <div className="space-y-3">
             {result.recommended_herbs.map((herb, i) => (
               <RecommendedHerbCard
@@ -313,6 +320,11 @@ export default function ResultsPage() {
             Start Over
           </button>
         </div>
+      </div>
+
+      {/* Email capture */}
+      <div className="mt-6">
+        <EmailCapture source="results" concern={result.concern_label} />
       </div>
 
       {/* Scroll-to-top button */}
