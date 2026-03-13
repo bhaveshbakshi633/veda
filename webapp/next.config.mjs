@@ -4,6 +4,9 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["msedge-tts", "ws"],
   },
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   headers: async () => [
     {
       source: "/(.*)",

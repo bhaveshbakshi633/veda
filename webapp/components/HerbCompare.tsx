@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { RecommendedHerb, CautionRecommendation } from "@/lib/types";
 
 type ComparableHerb = RecommendedHerb | CautionRecommendation;
@@ -46,15 +46,66 @@ export default function HerbCompare({ herbs }: HerbCompareProps) {
 
       {/* comparison modal */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+        <CompareModal
+          herbs={herbs}
+          compared={compared}
+          selected={selected}
+          setSelected={setSelected}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// extracted modal for proper hooks usage
+function CompareModal({
+  herbs,
+  compared,
+  selected,
+  setSelected,
+  onClose,
+}: {
+  herbs: ComparableHerb[];
+  compared: ComparableHerb[];
+  selected: string[];
+  setSelected: React.Dispatch<React.SetStateAction<string[]>>;
+  onClose: () => void;
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // escape key handler
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  // body scroll lock
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  // auto-focus close button
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
+
+  return (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="herb-compare-title">
+          <div className="absolute inset-0 bg-black/40" onClick={onClose} />
           <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-y-auto">
             {/* header */}
             <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-2xl z-10">
-              <h2 className="text-lg font-bold text-gray-900">Compare Herbs</h2>
+              <h2 id="herb-compare-title" className="text-lg font-bold text-gray-900">Compare Herbs</h2>
               <button
-                onClick={() => setOpen(false)}
+                ref={closeRef}
+                onClick={onClose}
                 className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                aria-label="Close comparison"
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -218,7 +269,5 @@ export default function HerbCompare({ herbs }: HerbCompareProps) {
             )}
           </div>
         </div>
-      )}
-    </>
   );
 }
