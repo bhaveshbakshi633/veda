@@ -68,6 +68,15 @@ export default function InteractionCheckerPage() {
   const [result, setResult] = useState<InteractionResult | null>(null);
   const [checked, setChecked] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [history, setHistory] = useState<Array<{
+    herbId: string;
+    targetId: string;
+    mode: "herb_med" | "herb_herb";
+    hasInteraction: boolean;
+    severity?: string;
+    herbName: string;
+    targetName: string;
+  }>>([]);
 
   async function handleCheck() {
     if (!herb || !target) return;
@@ -88,6 +97,26 @@ export default function InteractionCheckerPage() {
         const data = await res.json();
         setResult(data);
         trackEvent("interaction_checked", { mode, has_interaction: data.has_interaction });
+
+        // add to session history
+        const herbName = HERB_LIST.find(h => h.id === herb)?.name || herb;
+        const targetName = mode === "herb_med"
+          ? MEDICATIONS.find(m => m.id === target)?.label || target
+          : HERB_LIST.find(h => h.id === target)?.name || target;
+        setHistory(prev => {
+          const entry = {
+            herbId: herb,
+            targetId: target,
+            mode,
+            hasInteraction: data.has_interaction,
+            severity: data.interaction?.severity,
+            herbName,
+            targetName,
+          };
+          // dedupe — replace if same pair exists
+          const filtered = prev.filter(h => !(h.herbId === herb && h.targetId === target && h.mode === mode));
+          return [entry, ...filtered].slice(0, 10);
+        });
       }
     } catch {
       // error handled by no result
@@ -197,6 +226,7 @@ export default function InteractionCheckerPage() {
         </div>
 
         <button
+          data-check-btn
           onClick={handleCheck}
           disabled={!herb || !target || loading}
           className={`w-full py-3 rounded-xl text-sm font-semibold transition-all ${
@@ -299,6 +329,44 @@ export default function InteractionCheckerPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
               </svg>
             </Link>
+          </div>
+        </div>
+      )}
+
+      {/* session history */}
+      {history.length > 1 && (
+        <div className="mt-6 border-t border-gray-100 pt-5">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Checks This Session ({history.length})
+          </h3>
+          <div className="space-y-2">
+            {history.map((h, i) => (
+              <button
+                key={`${h.herbId}-${h.targetId}-${i}`}
+                onClick={() => {
+                  setHerb(h.herbId);
+                  setTarget(h.targetId);
+                  setMode(h.mode);
+                  // re-trigger check
+                  setTimeout(() => {
+                    const btn = document.querySelector<HTMLButtonElement>("[data-check-btn]");
+                    btn?.click();
+                  }, 100);
+                }}
+                className="w-full text-left px-3 py-2 rounded-lg border border-gray-100 hover:border-ayurv-primary/20 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2"
+              >
+                <span className="text-xs text-gray-700 truncate">
+                  {h.herbName} + {h.targetName}
+                </span>
+                <span className={`shrink-0 px-2 py-0.5 text-[10px] font-bold rounded ${
+                  h.hasInteraction
+                    ? "bg-red-50 text-red-700"
+                    : "bg-green-50 text-green-700"
+                }`}>
+                  {h.hasInteraction ? (h.severity?.replace(/_/g, " ").toUpperCase() || "INTERACTION") : "CLEAR"}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}
