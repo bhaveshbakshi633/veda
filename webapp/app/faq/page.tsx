@@ -120,9 +120,9 @@ export default function FAQPage() {
           {FAQS.map((faq, i) => (
             <details
               key={i}
-              className="group bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden"
+              className="group bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden focus-within:ring-2 focus-within:ring-ayurv-primary/30 transition-all"
             >
-              <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-gray-50 transition-colors">
+              <summary className="flex items-center justify-between gap-3 px-5 py-4 cursor-pointer list-none hover:bg-gray-50 focus:outline-none focus:bg-ayurv-primary/5 transition-colors">
                 <h2 className="text-sm font-semibold text-gray-900 pr-2">{faq.q}</h2>
                 <svg
                   className="w-4 h-4 text-gray-400 shrink-0 transition-transform group-open:rotate-180"
