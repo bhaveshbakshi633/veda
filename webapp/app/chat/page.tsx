@@ -65,13 +65,21 @@ export default function ChatPage() {
   // ─── Save chat history to localStorage on message changes ───
   useEffect(() => {
     if (!sessionId || messages.length === 0 || !initDone) return;
-    // sirf completed messages save karo (non-empty content wale)
-    const toSave = messages.filter(m => m.content.trim());
+    // sirf completed messages save karo (non-empty content wale), last 50 max
+    const toSave = messages.filter(m => m.content.trim()).slice(-50);
     if (toSave.length > 0) {
       try {
         localStorage.setItem(`ayurv_chat_${sessionId}`, JSON.stringify(toSave));
         localStorage.setItem("ayurv_chat_session_id", sessionId);
-      } catch { /* localStorage full — ignore */ }
+      } catch {
+        // localStorage full — purge old sessions and retry
+        try {
+          Object.keys(localStorage)
+            .filter(k => k.startsWith("ayurv_chat_") && k !== `ayurv_chat_${sessionId}`)
+            .forEach(k => localStorage.removeItem(k));
+          localStorage.setItem(`ayurv_chat_${sessionId}`, JSON.stringify(toSave));
+        } catch { /* still full — give up */ }
+      }
     }
   }, [messages, sessionId, initDone]);
 
@@ -736,10 +744,10 @@ export default function ChatPage() {
               </svg>
             </div>
             <div className="bg-white border border-gray-200/80 rounded-2xl rounded-bl-md px-5 py-3.5 shadow-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div className="flex items-center gap-1.5" role="status" aria-label="Assistant is typing">
+                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} aria-hidden="true" />
+                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} aria-hidden="true" />
+                <span className="w-2 h-2 bg-ayurv-accent/60 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} aria-hidden="true" />
               </div>
             </div>
           </div>

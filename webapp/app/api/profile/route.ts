@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .upsert(
         {
           user_id: uid,
-          age: age || null,
+          age: age ? Math.max(1, Math.min(120, Number(age) || 0)) : null,
           sex: sex || null,
           pregnancy_status: pregnancy_status || null,
           chronic_conditions: chronic_conditions || [],
