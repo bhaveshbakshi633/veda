@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getOrCreateUid, clearAllLocalData } from "@/lib/storage";
 
 interface HistoryEntry {
@@ -193,25 +194,42 @@ export default function HistoryPage() {
         </h2>
 
         {entries.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center">
-            <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-            </svg>
-            <p className="text-sm text-gray-500">No assessments yet.</p>
-            <button
-              onClick={() => {
-                if (!sessionStorage.getItem("ayurv_disclaimer")) {
-                  sessionStorage.setItem(
-                    "ayurv_disclaimer",
-                    JSON.stringify({ accepted: true, timestamp: new Date().toISOString(), version: "v1.0" })
-                  );
-                }
-                router.push("/intake");
-              }}
-              className="mt-3 px-4 py-2 text-xs font-medium text-ayurv-primary border border-ayurv-primary/20 rounded-xl hover:bg-ayurv-primary hover:text-white transition-all"
-            >
-              Start Your First Assessment
-            </button>
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8">
+            <div className="text-center">
+              <svg className="w-10 h-10 text-gray-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+              <p className="text-sm font-medium text-gray-600 mb-1">No assessments yet</p>
+              <p className="text-xs text-gray-400 mb-4 leading-relaxed max-w-sm mx-auto">
+                Your completed herb safety assessments will appear here. Results are stored securely on your device.
+              </p>
+              <button
+                onClick={() => {
+                  if (!sessionStorage.getItem("ayurv_disclaimer")) {
+                    sessionStorage.setItem(
+                      "ayurv_disclaimer",
+                      JSON.stringify({ accepted: true, timestamp: new Date().toISOString(), version: "v1.0" })
+                    );
+                  }
+                  router.push("/intake");
+                }}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-ayurv-primary rounded-xl hover:bg-ayurv-secondary transition-colors shadow-sm"
+              >
+                Start Your First Assessment
+              </button>
+            </div>
+            <div className="mt-5 border-t border-gray-200 pt-4 text-center">
+              <p className="text-xs text-gray-400 mb-2">Or explore herbs first</p>
+              <Link
+                href="/herbs"
+                className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-ayurv-primary transition-colors"
+              >
+                Browse Herb Library
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

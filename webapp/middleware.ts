@@ -64,7 +64,11 @@ export function middleware(req: NextRequest) {
 
   if (entry.count > limit) {
     return NextResponse.json(
-      { error: "Too many requests. Please wait a moment and try again." },
+      {
+        error: "Too many requests",
+        message: `Rate limit reached (${limit} requests per minute). Please wait ${resetSec} seconds and try again.`,
+        retry_after: resetSec,
+      },
       {
         status: 429,
         headers: {
