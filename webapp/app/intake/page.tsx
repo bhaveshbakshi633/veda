@@ -7,6 +7,7 @@ import { createInitialFormState, RED_FLAG_ITEMS, type IntakeFormState } from "@/
 import StepAbout from "@/components/intake/StepAbout";
 import StepHealth from "@/components/intake/StepHealth";
 import StepConcern from "@/components/intake/StepConcern";
+import { trackEvent } from "@/lib/track";
 
 type Step = 1 | 2 | 3;
 
@@ -14,11 +15,36 @@ const STEP_LABELS = ["About You", "Health", "Concern"];
 
 export default function IntakePage() {
   const router = useRouter();
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep] = useState<Step>(() => {
+    // restore saved step from sessionStorage
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("ayurv_intake_step");
+      if (saved && [1, 2, 3].includes(Number(saved))) return Number(saved) as Step;
+    }
+    return 1;
+  });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<IntakeFormState>(createInitialFormState);
+  const [form, setForm] = useState<IntakeFormState>(() => {
+    // restore saved form from sessionStorage
+    if (typeof window !== "undefined") {
+      const saved = sessionStorage.getItem("ayurv_intake_form");
+      if (saved) {
+        try { return JSON.parse(saved); } catch { /* corrupt — use default */ }
+      }
+    }
+    return createInitialFormState();
+  });
   const [profileLoaded, setProfileLoaded] = useState(false);
+
+  // persist step + form to sessionStorage on every change
+  useEffect(() => {
+    sessionStorage.setItem("ayurv_intake_step", String(step));
+  }, [step]);
+
+  useEffect(() => {
+    sessionStorage.setItem("ayurv_intake_form", JSON.stringify(form));
+  }, [form]);
 
   // load saved profile from backend
   useEffect(() => {
@@ -122,6 +148,10 @@ export default function IntakePage() {
 
       const result = await res.json();
       sessionStorage.setItem("ayurv_result", JSON.stringify(result));
+      trackEvent("intake_completed", { concern: form.symptom_primary });
+      // intake done — clean up saved progress
+      sessionStorage.removeItem("ayurv_intake_step");
+      sessionStorage.removeItem("ayurv_intake_form");
 
       // auto-save profile (fire-and-forget)
       fetch("/api/profile", {
@@ -254,7 +284,10 @@ export default function IntakePage() {
           {step < 3 ? (
             <button
               type="button"
-              onClick={() => setStep((s) => Math.min(3, s + 1) as Step)}
+              onClick={() => {
+                trackEvent("intake_started", { step: step + 1 });
+                setStep((s) => Math.min(3, s + 1) as Step);
+              }}
               disabled={!canAdvance()}
               className={`flex items-center gap-1.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 canAdvance()

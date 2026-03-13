@@ -16,6 +16,10 @@ export default function DisclaimerFooter() {
           Educational information only — not medical advice. Always consult a qualified healthcare practitioner.
         </p>
         <div className="flex items-center gap-3 text-[11px] text-gray-400 shrink-0">
+          <Link href="/faq" className="hover:text-ayurv-primary transition-colors">FAQ</Link>
+          <span className="text-gray-300">&middot;</span>
+          <Link href="/herbs" className="hover:text-ayurv-primary transition-colors">Herbs</Link>
+          <span className="text-gray-300">&middot;</span>
           <Link href="/privacy" className="hover:text-ayurv-primary transition-colors">Privacy</Link>
           <span className="text-gray-300">&middot;</span>
           <Link href="/terms" className="hover:text-ayurv-primary transition-colors">Terms</Link>
