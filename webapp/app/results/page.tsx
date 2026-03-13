@@ -175,8 +175,30 @@ export default function ResultsPage() {
       </div>
 
       {/* 2. Quick Summary Card */}
-      <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl p-4 mb-6">
+      <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl p-4 mb-4">
         <p className="text-sm text-gray-800">{getSummary(result)}</p>
+      </div>
+
+      {/* 2b. At-a-glance breakdown chips */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {result.recommended_herbs.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            {result.recommended_herbs.length} recommended
+          </span>
+        )}
+        {result.caution_herbs.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            {result.caution_herbs.length} with cautions
+          </span>
+        )}
+        {result.avoid_herbs.length > 0 && (
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            {result.avoid_herbs.length} to avoid
+          </span>
+        )}
       </div>
 
       {/* 3. Doctor Referral Banner */}

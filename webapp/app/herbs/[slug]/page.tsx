@@ -428,6 +428,12 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>
           </Link>
+          <Link
+            href="/check"
+            className="inline-flex items-center gap-2 px-5 py-2.5 border border-ayurv-primary/20 text-ayurv-primary font-medium rounded-xl hover:bg-ayurv-primary/5 transition-colors text-sm"
+          >
+            Check Drug Interactions
+          </Link>
         </div>
 
         {/* related herbs */}
