@@ -549,9 +549,23 @@ export default function ChatPage() {
                   {sending && i === messages.length - 1 && msg.content && (
                     <span className="inline-block w-2 h-4 bg-ayurv-primary/40 animate-pulse ml-0.5" />
                   )}
-                  {/* TTS button — visible, accessible */}
+                  {/* action buttons — copy + TTS */}
                   {msg.content && !(sending && i === messages.length - 1) && (
                     <div className="flex items-center gap-1 mt-2 pt-1.5 border-t border-gray-100">
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard.writeText(msg.content);
+                          // brief visual feedback
+                          const btn = document.getElementById(`copy-${i}`);
+                          if (btn) { btn.textContent = "Copied!"; setTimeout(() => btn.textContent = "Copy", 1500); }
+                        }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium text-gray-400 hover:text-ayurv-primary hover:bg-ayurv-primary/5 transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9.75a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+                        </svg>
+                        <span id={`copy-${i}`}>Copy</span>
+                      </button>
                       <button
                         onClick={() => speaking && ttsPlaying === i ? stopSpeaking() : speakText(msg.content, i)}
                         className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${

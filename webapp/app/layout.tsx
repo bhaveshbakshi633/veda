@@ -36,6 +36,8 @@ export const metadata: Metadata = {
     icon: "/favicon.svg",
     apple: "/icon-192.png",
   },
+  metadataBase: new URL("https://webapp-self-rho.vercel.app"),
+  alternates: { canonical: "/" },
   manifest: "/manifest.json",
   other: {
     "mobile-web-app-capable": "yes",
