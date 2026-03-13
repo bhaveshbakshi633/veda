@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface EmergencyOverlayProps {
@@ -23,6 +24,16 @@ export default function EmergencyOverlay({
   flags,
 }: EmergencyOverlayProps) {
   const router = useRouter();
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // body scroll lock + auto-focus first actionable element
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    // focus the emergency call link
+    const firstLink = dialogRef.current?.querySelector("a") as HTMLElement | null;
+    firstLink?.focus();
+    return () => { document.body.style.overflow = ""; };
+  }, []);
 
   return (
     <div
@@ -32,7 +43,7 @@ export default function EmergencyOverlay({
       aria-labelledby="emergency-title"
       aria-describedby="emergency-message"
     >
-      <div className="bg-white rounded-2xl max-w-lg w-full p-8 text-center shadow-2xl">
+      <div ref={dialogRef} className="bg-white rounded-2xl max-w-lg w-full p-8 text-center shadow-2xl">
         <div className="w-16 h-16 bg-risk-red rounded-full flex items-center justify-center mx-auto mb-4">
           <svg
             className="w-8 h-8 text-white"

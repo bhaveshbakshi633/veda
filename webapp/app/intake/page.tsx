@@ -135,11 +135,17 @@ export default function IntakePage() {
     };
 
     try {
+      // 30s timeout — network issues pe user stuck nahi rahega
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+
       const res = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
         const data = await res.json();
@@ -170,7 +176,11 @@ export default function IntakePage() {
 
       router.push("/chat");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Request timed out. Please check your connection and try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
       setSubmitting(false);
     }
