@@ -91,9 +91,38 @@ function buildDoctorSummary(result: RiskAssessment): string {
   return lines.join("\n");
 }
 
+// generate discussion questions based on assessment
+function getDoctorQuestions(result: RiskAssessment): string[] {
+  const questions: string[] = [];
+
+  if (result.recommended_herbs.length > 0) {
+    const topHerb = result.recommended_herbs[0];
+    questions.push(`Is ${topHerb.herb_name} appropriate for my ${result.concern_label.toLowerCase()}?`);
+    if (topHerb.dosage) {
+      questions.push(`Can I start with ${topHerb.dosage.forms[0]?.range_min || "the suggested"} ${topHerb.dosage.forms[0]?.unit || "dose"} or should I adjust?`);
+    }
+  }
+
+  const hasMedInteraction = result.caution_herbs.some(h =>
+    h.cautions.some(c => c.type === "medication_interaction")
+  );
+  if (hasMedInteraction) {
+    questions.push("Are any of my current medications affected by these herbs?");
+  }
+
+  if (result.avoid_herbs.length > 0) {
+    questions.push(`Are there safer alternatives to ${result.avoid_herbs[0].herb_name} for my condition?`);
+  }
+
+  questions.push("How long should I try an herb before expecting results?");
+  return questions.slice(0, 4);
+}
+
 export default function DoctorCard({ result }: DoctorCardProps) {
   const [copied, setCopied] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const summaryText = buildDoctorSummary(result);
+  const questions = getDoctorQuestions(result);
 
   async function handleCopy() {
     try {
@@ -115,13 +144,14 @@ export default function DoctorCard({ result }: DoctorCardProps) {
   }
 
   return (
-    <div className="bg-gray-50 border border-gray-300 rounded-lg p-5 mb-8">
-      <div className="flex items-center justify-between mb-3">
+    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden mb-8">
+      {/* header */}
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-2">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-ayurv-primary" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
           </svg>
-          Show My Doctor
+          Doctor Discussion Guide
         </h3>
         <button
           onClick={handleCopy}
@@ -134,12 +164,57 @@ export default function DoctorCard({ result }: DoctorCardProps) {
           {copied ? "Copied!" : "Copy Summary"}
         </button>
       </div>
-      <p className="text-xs text-gray-500 mb-3">
-        Copy this clinical summary to share with your doctor. It includes recommendations,
-        interactions, and cautions from your assessment.
-      </p>
-      <div className="bg-white border border-gray-200 rounded-lg p-3.5 text-xs text-gray-700 whitespace-pre-wrap overflow-y-auto max-h-48 leading-relaxed">
-        {summaryText}
+
+      <div className="p-5">
+        {/* questions to ask */}
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Questions to Ask Your Doctor</p>
+          <ul className="space-y-1.5">
+            {questions.map((q, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                <span className="w-5 h-5 rounded-full bg-ayurv-primary/10 text-ayurv-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                {q}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* key points */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3.5 mb-4">
+          <p className="text-xs font-semibold text-blue-700 mb-1.5">Points to Mention</p>
+          <ul className="space-y-1 text-xs text-gray-600">
+            {result.recommended_herbs.length > 0 && (
+              <li>Recommended: {result.recommended_herbs.map(h => `${h.herb_name} (Grade ${h.evidence_grade || "N/A"})`).join(", ")}</li>
+            )}
+            {result.avoid_herbs.length > 0 && (
+              <li className="text-risk-red">Flagged to avoid: {result.avoid_herbs.map(h => h.herb_name).join(", ")}</li>
+            )}
+            {result.caution_herbs.some(h => h.cautions.some(c => c.type === "medication_interaction")) && (
+              <li className="text-risk-amber">Potential medication interactions detected</li>
+            )}
+          </ul>
+        </div>
+
+        {/* expandable full summary */}
+        <button
+          onClick={() => setShowGuide(!showGuide)}
+          className="text-xs text-ayurv-primary font-medium hover:underline flex items-center gap-1 mb-2"
+        >
+          <svg className={`w-3.5 h-3.5 transition-transform ${showGuide ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+          {showGuide ? "Hide full clinical summary" : "View full clinical summary"}
+        </button>
+
+        {showGuide && (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 text-xs text-gray-700 whitespace-pre-wrap overflow-y-auto max-h-48 leading-relaxed animate-fade-in">
+            {summaryText}
+          </div>
+        )}
+
+        <p className="text-[11px] text-gray-400 mt-3">
+          This is not a prescription. Share this guide with your healthcare provider for informed discussion.
+        </p>
       </div>
     </div>
   );

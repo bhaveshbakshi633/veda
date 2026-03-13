@@ -40,6 +40,7 @@ export default function ChatPage() {
   const [sttSupported, setSttSupported] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState<number | null>(null);
   const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null);
+  const [voiceTranscript, setVoiceTranscript] = useState<string | null>(null);
   const [language, setLanguage] = useState<"en" | "hi">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("ayurv_chat_lang");
@@ -382,7 +383,8 @@ export default function ChatPage() {
     recognition.onresult = (e: SpeechRecognitionEvent) => {
       const transcript = e.results[e.results.length - 1][0].transcript;
       if (transcript.trim()) {
-        sendMessage(transcript);
+        // show confirmation toast before sending — user can edit
+        setVoiceTranscript(transcript.trim());
       }
       setListening(false);
     };
@@ -418,7 +420,7 @@ export default function ChatPage() {
     sendMessage(input);
   }
 
-  // suggestion chips
+  // suggestion chips — initial + contextual follow-ups
   function getSuggestionChips(): string[] {
     if (!assessment) return [];
     const chips: string[] = [];
@@ -430,6 +432,42 @@ export default function ChatPage() {
     if (assessment.avoid_herbs.length > 0) chips.push("What should I avoid and why?");
     chips.push("What dosage should I start with?");
     return chips.slice(0, 4);
+  }
+
+  // contextual follow-ups — based on last assistant message
+  function getFollowUpChips(): string[] {
+    if (!assessment) return [];
+    const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+    if (!lastAssistant?.content) return [];
+    const content = lastAssistant.content.toLowerCase();
+    const chips: string[] = [];
+
+    // detect herb mentions and suggest follow-ups
+    const allHerbs = [
+      ...assessment.recommended_herbs.map(h => h.herb_name),
+      ...assessment.caution_herbs.map(h => h.herb_name),
+    ];
+    const mentionedHerb = allHerbs.find(name => content.includes(name.toLowerCase()));
+
+    if (mentionedHerb) {
+      chips.push(`What's the best form to take ${mentionedHerb}?`);
+      chips.push(`Any side effects of ${mentionedHerb}?`);
+    }
+
+    // topic-based suggestions
+    if (content.includes("dosage") || content.includes("dose")) {
+      chips.push("How long before I see results?");
+      chips.push("Should I take it with food?");
+    } else if (content.includes("interact") || content.includes("medication")) {
+      chips.push("Are there safer alternatives?");
+      chips.push("What should I tell my doctor?");
+    } else if (content.includes("safe") || content.includes("recommend")) {
+      chips.push("What dosage should I start with?");
+      chips.push("Can I combine these herbs?");
+    }
+
+    // avoid duplicating the initial chips
+    return chips.slice(0, 3);
   }
 
   const summary = assessment
@@ -654,7 +692,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* suggestion chips */}
+        {/* suggestion chips — initial (before user sends first message) */}
         {!sending && initDone && messages.filter(m => m.role === "user").length === 0 && (
           <div className="flex flex-wrap gap-2 px-1 animate-fade-in">
             {getSuggestionChips().map((chip) => (
@@ -662,6 +700,21 @@ export default function ChatPage() {
                 key={chip}
                 onClick={() => sendMessage(chip)}
                 className="px-3 py-2 text-xs font-medium bg-ayurv-primary/5 text-ayurv-primary border border-ayurv-primary/15 rounded-full hover:bg-ayurv-primary/10 hover:border-ayurv-primary/25 transition-all"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* follow-up chips — after conversation has started */}
+        {!sending && initDone && messages.filter(m => m.role === "user").length > 0 && !lastFailedMessage && (
+          <div className="flex flex-wrap gap-2 px-1 animate-fade-in">
+            {getFollowUpChips().map((chip) => (
+              <button
+                key={chip}
+                onClick={() => sendMessage(chip)}
+                className="px-3 py-2 text-xs font-medium bg-gray-50 text-gray-600 border border-gray-200 rounded-full hover:bg-ayurv-primary/5 hover:text-ayurv-primary hover:border-ayurv-primary/15 transition-all"
               >
                 {chip}
               </button>
@@ -689,6 +742,36 @@ export default function ChatPage() {
 
         <div ref={messagesEndRef} />
       </div>
+
+      {/* voice transcript confirmation — shows transcribed text before sending */}
+      {voiceTranscript && (
+        <div className="shrink-0 animate-fade-in">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mx-1">
+            <p className="text-xs text-blue-600 font-medium mb-1.5">You said:</p>
+            <p className="text-sm text-gray-800 mb-2.5">&ldquo;{voiceTranscript}&rdquo;</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { sendMessage(voiceTranscript); setVoiceTranscript(null); }}
+                className="flex-1 px-3 py-2 text-xs font-semibold bg-ayurv-primary text-white rounded-lg hover:bg-ayurv-secondary transition-colors"
+              >
+                Send
+              </button>
+              <button
+                onClick={() => { setInput(voiceTranscript); setVoiceTranscript(null); inputRef.current?.focus(); }}
+                className="flex-1 px-3 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setVoiceTranscript(null)}
+                className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* voice mode — full-screen mic UI */}
       {voiceMode && initDone && !escalated && (
