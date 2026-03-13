@@ -129,6 +129,13 @@ export default function AboutPage() {
           interactions. Every claim is evidence-graded. Every risk flag is
           explained. No black boxes.
         </p>
+        {/* data freshness badge */}
+        <div className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 bg-green-50 border border-green-200 rounded-full text-xs text-green-700">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Herb database last reviewed <strong>March 2026</strong> &middot; 10 herbs &middot; 50+ evidence claims</span>
+        </div>
       </section>
 
       {/* ------------------------------------------------------------------ */}
