@@ -213,6 +213,7 @@ export default function DownloadReport({ result }: DownloadReportProps) {
 
   return (
     <button
+      type="button"
       onClick={handleDownload}
       disabled={generating}
       className="px-4 py-2 text-sm font-medium text-ayurv-primary border border-ayurv-primary rounded-lg hover:bg-ayurv-primary hover:text-white transition-colors disabled:opacity-50 disabled:cursor-wait flex items-center gap-2"

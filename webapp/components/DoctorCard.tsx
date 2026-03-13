@@ -163,6 +163,7 @@ export default function DoctorCard({ result }: DoctorCardProps) {
         </h3>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={handlePrint}
             className="px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
             aria-label="Print doctor discussion guide"
