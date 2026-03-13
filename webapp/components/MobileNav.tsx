@@ -51,6 +51,17 @@ export default function MobileNav() {
               </button>
             </div>
 
+            {/* primary CTA */}
+            <div className="px-3 pt-3 pb-1">
+              <Link
+                href="/intake"
+                onClick={() => setOpen(false)}
+                className="block px-4 py-3 rounded-xl bg-ayurv-primary text-white font-semibold text-sm text-center shadow-sm hover:bg-ayurv-secondary transition-colors"
+              >
+                Start Safety Assessment
+              </Link>
+            </div>
+
             {/* links */}
             <div className="flex-1 overflow-y-auto py-2">
               {NAV_LINKS.map((link) => (

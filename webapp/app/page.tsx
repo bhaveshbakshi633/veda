@@ -428,7 +428,10 @@ export default function LandingPage() {
                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
             }`}
           >
-            {allChecked ? "Check My Herb Safety" : "Accept all conditions to proceed"}
+            {allChecked
+              ? "Check My Herb Safety"
+              : `${Object.values(checks).filter(Boolean).length} / ${DISCLAIMER_CHECKS.length} — Accept all to proceed`
+            }
           </button>
 
           {allChecked && (
