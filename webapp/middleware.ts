@@ -33,6 +33,7 @@ setInterval(() => {
 
 function getClientIP(req: NextRequest): string {
   return (
+    req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     req.headers.get("x-real-ip") ||
     "unknown"
@@ -58,19 +59,29 @@ export function middleware(req: NextRequest) {
 
   entry.count++;
 
+  const remaining = Math.max(0, limit - entry.count);
+  const resetSec = Math.ceil((entry.resetAt - now) / 1000);
+
   if (entry.count > limit) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment and try again." },
       {
         status: 429,
         headers: {
-          "Retry-After": String(Math.ceil((entry.resetAt - now) / 1000)),
+          "Retry-After": String(resetSec),
+          "X-RateLimit-Limit": String(limit),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": String(Math.ceil(entry.resetAt / 1000)),
         },
       }
     );
   }
 
-  return NextResponse.next();
+  const res = NextResponse.next();
+  res.headers.set("X-RateLimit-Limit", String(limit));
+  res.headers.set("X-RateLimit-Remaining", String(remaining));
+  res.headers.set("X-RateLimit-Reset", String(Math.ceil(entry.resetAt / 1000)));
+  return res;
 }
 
 export const config = {

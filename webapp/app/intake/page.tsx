@@ -201,7 +201,7 @@ export default function IntakePage() {
 
             return (
               <div key={label} className="flex items-center flex-1">
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center" aria-current={isCurrent ? "step" : undefined} aria-label={`Step ${num}: ${label}${isComplete ? " (complete)" : isCurrent ? " (current)" : ""}`}>
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                       isComplete
@@ -285,10 +285,19 @@ export default function IntakePage() {
             <button
               type="button"
               onClick={() => {
-                trackEvent("intake_started", { step: step + 1 });
+                const nextStep = step + 1;
+                trackEvent("intake_step_changed", { from: step, to: nextStep });
+                // red flag check — track if user triggered any
+                if (step === 1 && hasActiveRedFlags) {
+                  trackEvent("red_flag_triggered", {
+                    flags: Object.entries(form.red_flags).filter(([, v]) => v).map(([k]) => k).join(","),
+                  });
+                }
                 setStep((s) => Math.min(3, s + 1) as Step);
               }}
               disabled={!canAdvance()}
+              aria-disabled={!canAdvance()}
+              aria-label={canAdvance() ? `Continue to step ${step + 1}` : "Complete all required fields to continue"}
               className={`flex items-center gap-1.5 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 canAdvance()
                   ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-md shadow-ayurv-primary/15 hover:shadow-lg hover:-translate-y-0.5"
@@ -312,15 +321,15 @@ export default function IntakePage() {
               }`}
             >
               {submitting ? (
-                <span className="flex items-center gap-2">
-                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <span className="flex items-center gap-2" role="status" aria-label="Analysing your health profile">
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                   </svg>
-                  Analysing...
+                  Analysing your profile...
                 </span>
               ) : (
-                "Submit and Chat"
+                "Get My Safety Report"
               )}
             </button>
           )}

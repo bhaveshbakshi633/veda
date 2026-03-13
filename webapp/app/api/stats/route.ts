@@ -23,8 +23,8 @@ export async function GET() {
     cachedCount = count || 0;
     cacheTime = now;
     return NextResponse.json({ count: cachedCount });
-  } catch {
-    // fallback — return cached or 0
+  } catch (err) {
+    console.error("Stats query failed:", err);
     return NextResponse.json({ count: cachedCount });
   }
 }

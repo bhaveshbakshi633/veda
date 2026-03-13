@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const { email, source, concern } = await req.json();
 
     // basic email validation
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!email || typeof email !== "string" || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 

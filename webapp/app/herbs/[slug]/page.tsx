@@ -180,18 +180,31 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
   const { names, botanical_name, parts_used, ayurvedic_profile, dosage_ranges, side_effects } = herb;
 
   // structured data for Google
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://webapp-self-rho.vercel.app";
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "MedicalWebPage",
-    name: `${names.english} — Safety & Evidence`,
-    description: `Evidence-based safety information for ${names.english} (${botanical_name})`,
-    about: {
-      "@type": "Drug",
-      name: names.english,
-      alternateName: [names.hindi, names.sanskrit, botanical_name],
-    },
-    lastReviewed: new Date().toISOString().split("T")[0],
-    medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
+    "@graph": [
+      {
+        "@type": "MedicalWebPage",
+        name: `${names.english} — Safety & Evidence`,
+        description: `Evidence-based safety information for ${names.english} (${botanical_name})`,
+        about: {
+          "@type": "Drug",
+          name: names.english,
+          alternateName: [names.hindi, names.sanskrit, botanical_name],
+        },
+        lastReviewed: new Date().toISOString().split("T")[0],
+        medicalAudience: { "@type": "MedicalAudience", audienceType: "Patient" },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: baseUrl },
+          { "@type": "ListItem", position: 2, name: "Herbs", item: `${baseUrl}/herbs` },
+          { "@type": "ListItem", position: 3, name: names.english, item: `${baseUrl}/herbs/${slug}` },
+        ],
+      },
+    ],
   };
 
   // find related herbs from HERB_LIST (exclude current)

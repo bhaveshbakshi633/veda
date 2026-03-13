@@ -7,7 +7,8 @@ export default function DisclaimerFooter() {
   const pathname = usePathname();
 
   // chat page has its own disclaimer — hide footer to avoid overlapping input
-  if (pathname === "/chat") return null;
+  // chat page has its own disclaimer — hide footer
+  if (pathname.startsWith("/chat")) return null;
 
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-gray-200/80 px-4 py-2.5 z-50">
@@ -19,6 +20,8 @@ export default function DisclaimerFooter() {
           <Link href="/faq" className="hover:text-ayurv-primary transition-colors">FAQ</Link>
           <span className="text-gray-300">&middot;</span>
           <Link href="/herbs" className="hover:text-ayurv-primary transition-colors">Herbs</Link>
+          <span className="text-gray-300">&middot;</span>
+          <Link href="/about" className="hover:text-ayurv-primary transition-colors">About</Link>
           <span className="text-gray-300">&middot;</span>
           <Link href="/privacy" className="hover:text-ayurv-primary transition-colors">Privacy</Link>
           <span className="text-gray-300">&middot;</span>

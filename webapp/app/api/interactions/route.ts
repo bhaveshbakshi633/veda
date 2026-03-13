@@ -13,6 +13,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "herb parameter required" }, { status: 400 });
   }
 
+  // herb IDs must match safe format — prevents PostgREST filter injection
+  const SAFE_ID = /^[a-z0-9_-]+$/;
+  if (!SAFE_ID.test(herb) || (medication && !SAFE_ID.test(medication)) || (herb2 && !SAFE_ID.test(herb2))) {
+    return NextResponse.json({ error: "Invalid parameter format" }, { status: 400 });
+  }
+
   const db = getServiceClient();
 
   try {

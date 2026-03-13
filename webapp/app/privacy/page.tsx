@@ -4,6 +4,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Privacy Policy — Ayurv",
   description: "How Ayurv handles your data. DPDPA 2023 compliant privacy practices.",
+  openGraph: {
+    title: "Privacy Policy — Ayurv",
+    description: "How Ayurv handles your health data. DPDPA 2023 compliant.",
+    type: "article",
+    locale: "en_IN",
+    siteName: "Ayurv",
+  },
 };
 
 export default function PrivacyPolicyPage() {

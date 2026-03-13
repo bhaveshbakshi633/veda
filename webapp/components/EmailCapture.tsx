@@ -27,7 +27,7 @@ export default function EmailCapture({ source, concern, compact }: EmailCaptureP
 
       if (res.ok) {
         setStatus("done");
-        trackEvent("email_captured" as never, { source });
+        trackEvent("email_captured", { source });
       } else {
         setStatus("error");
       }

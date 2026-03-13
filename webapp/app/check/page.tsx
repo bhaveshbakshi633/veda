@@ -86,7 +86,7 @@ export default function InteractionCheckerPage() {
       if (res.ok) {
         const data = await res.json();
         setResult(data);
-        trackEvent("interaction_checked" as never, { mode, has_interaction: data.has_interaction });
+        trackEvent("interaction_checked", { mode, has_interaction: data.has_interaction });
       }
     } catch {
       // error handled by no result
@@ -143,10 +143,11 @@ export default function InteractionCheckerPage() {
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mb-6">
         <div className="grid sm:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+            <label htmlFor="check-herb" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               Herb
             </label>
             <select
+              id="check-herb"
               value={herb}
               onChange={(e) => { setHerb(e.target.value); setResult(null); setChecked(false); }}
               className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white"
@@ -161,11 +162,12 @@ export default function InteractionCheckerPage() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+            <label htmlFor="check-target" className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
               {mode === "herb_med" ? "Medication" : "Second Herb"}
             </label>
             {mode === "herb_med" ? (
               <select
+                id="check-target"
                 value={target}
                 onChange={(e) => { setTarget(e.target.value); setResult(null); setChecked(false); }}
                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white"
@@ -177,6 +179,7 @@ export default function InteractionCheckerPage() {
               </select>
             ) : (
               <select
+                id="check-target"
                 value={target}
                 onChange={(e) => { setTarget(e.target.value); setResult(null); setChecked(false); }}
                 className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-white"

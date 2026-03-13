@@ -4,6 +4,13 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms of Service — Ayurv",
   description: "Terms and conditions for using Ayurv herb safety intelligence tool.",
+  openGraph: {
+    title: "Terms of Service — Ayurv",
+    description: "Terms and conditions for using the Ayurv herb safety tool.",
+    type: "article",
+    locale: "en_IN",
+    siteName: "Ayurv",
+  },
 };
 
 export default function TermsOfServicePage() {

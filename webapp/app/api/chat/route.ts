@@ -46,8 +46,24 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const sessionStates = new Map<string, ConversationState>();
 const sessionProfiles = new Map<string, UserProfile>();
 const sessionAssessments = new Map<string, string>();
+const sessionLastAccess = new Map<string, number>();
+
+// session TTL — 2 hours, cleanup every 10 minutes
+const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+setInterval(() => {
+  const now = Date.now();
+  for (const [sid, lastAccess] of sessionLastAccess) {
+    if (now - lastAccess > SESSION_TTL_MS) {
+      sessionStates.delete(sid);
+      sessionProfiles.delete(sid);
+      sessionAssessments.delete(sid);
+      sessionLastAccess.delete(sid);
+    }
+  }
+}, 600_000);
 
 function getOrCreateState(sessionId: string): ConversationState {
+  sessionLastAccess.set(sessionId, Date.now());
   if (!sessionStates.has(sessionId)) {
     sessionStates.set(sessionId, createInitialState(sessionId));
   }
@@ -441,7 +457,8 @@ async function callGroq(system: string, messages: ChatMessage[], maxTokens: numb
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Groq error ${res.status}: ${errText}`);
+    console.error(`Groq API error ${res.status}:`, errText);
+    throw new Error("LLM service temporarily unavailable");
   }
 
   const data = await res.json();
@@ -536,8 +553,9 @@ function createStreamResponse(
                 `data: ${JSON.stringify({ type: "done", tools_called: toolsCalled })}\n\n`
               ));
             } catch (groqErr) {
+              console.error("Groq fallback error:", groqErr);
               controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: "error", content: `LLM unavailable: ${groqErr instanceof Error ? groqErr.message : "unknown"}` })}\n\n`
+                `data: ${JSON.stringify({ type: "error", content: "LLM service unavailable. Please try again later." })}\n\n`
               ));
             }
             sessionStates.set(sessionId, state);
@@ -582,7 +600,7 @@ function createStreamResponse(
                 const enforcement = enforceResponse(accumulated, state, toolsCalled);
 
                 if (enforcement.violations.length > 0) {
-                  logAudit(sessionId, "ORCHESTRATOR_ENFORCEMENT", {
+                  await logAudit(sessionId, "ORCHESTRATOR_ENFORCEMENT", {
                     violations: enforcement.violations,
                     actions: enforcement.actions_taken,
                   });
@@ -608,8 +626,9 @@ function createStreamResponse(
         sessionStates.set(sessionId, state);
         controller.close();
       } catch (err) {
+        console.error("Stream error:", err);
         controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ type: "error", content: err instanceof Error ? err.message : "Stream failed" })}\n\n`
+          `data: ${JSON.stringify({ type: "error", content: "Something went wrong. Please try again." })}\n\n`
         ));
         controller.close();
       }
@@ -621,6 +640,7 @@ function createStreamResponse(
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "Connection": "keep-alive",
+      "X-Accel-Buffering": "no",
     },
   });
 }
@@ -731,7 +751,7 @@ export async function POST(request: NextRequest) {
       assessment_result,
       stream: useStream = false,
       voice_mode: voiceMode = false,
-      language: langPref = "en",
+      language: rawLangPref = "en",
     } = body as {
       session_id: string;
       message: string;
@@ -739,8 +759,11 @@ export async function POST(request: NextRequest) {
       assessment_result?: RiskAssessment;
       stream?: boolean;
       voice_mode?: boolean;
-      language?: "en" | "hi";
+      language?: string;
     };
+
+    // validate language — only allow known values
+    const langPref: "en" | "hi" = rawLangPref === "hi" ? "hi" : "en";
 
     if (!session_id || !message) {
       return NextResponse.json(
@@ -884,7 +907,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Chat error:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Chat failed" },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

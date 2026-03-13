@@ -44,16 +44,14 @@ export default function HistoryPage() {
     });
   }, []);
 
-  function handleViewResult(entry: HistoryEntry) {
-    // fetch full result from backend and load into session
-    const uid = getOrCreateUid();
-    fetch(`/api/user/history?uid=${uid}`)
-      .then((r) => r.json())
-      .then(() => {
-        // for now, direct to intake for a new assessment
-        // (full result retrieval would need a dedicated endpoint)
-        router.push("/intake");
-      });
+  function handleNewAssessment() {
+    if (!sessionStorage.getItem("ayurv_disclaimer")) {
+      sessionStorage.setItem(
+        "ayurv_disclaimer",
+        JSON.stringify({ accepted: true, timestamp: new Date().toISOString(), version: "v1.0" })
+      );
+    }
+    router.push("/intake");
   }
 
   function handleClearProfile() {
@@ -113,8 +111,8 @@ export default function HistoryPage() {
     <div className="max-w-3xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-ayurv-primary">Your Data</h1>
-          <p className="text-sm text-gray-500 mt-1">Securely stored. You control everything.</p>
+          <h1 className="text-2xl font-bold text-ayurv-primary">My Assessments</h1>
+          <p className="text-sm text-gray-500 mt-1">Your past herb safety checks. Securely stored.</p>
         </div>
         <button
           onClick={() => router.push("/")}
@@ -251,10 +249,10 @@ export default function HistoryPage() {
                     <p className="text-xs text-gray-400">{entry.total} herbs with evidence</p>
                   </div>
                   <button
-                    onClick={() => handleViewResult(entry)}
+                    onClick={handleNewAssessment}
                     className="px-3 py-1.5 text-xs font-medium text-ayurv-primary border border-ayurv-primary/20 rounded-lg hover:bg-ayurv-primary hover:text-white transition-all shrink-0"
                   >
-                    New Assessment
+                    Re-assess
                   </button>
                 </div>
               </div>

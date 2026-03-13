@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import type {
   RecommendedHerb,
   CautionRecommendation,
@@ -114,7 +114,7 @@ function DosageInfo({
 // RECOMMENDED HERB CARD (GREEN — top picks)
 // ============================================
 
-export function RecommendedHerbCard({
+export const RecommendedHerbCard = memo(function RecommendedHerbCard({
   herb,
   rank,
   onEvidenceClick,
@@ -133,10 +133,12 @@ export function RecommendedHerbCard({
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 flex items-center justify-between gap-3"
+        aria-expanded={expanded}
+        aria-label={`${herb.herb_name} — recommended, evidence grade ${herb.evidence_grade || "not rated"}. ${expanded ? "Collapse" : "Expand"} details.`}
       >
         <div className="flex items-center gap-3 min-w-0 flex-wrap">
           {rank <= 3 && (
-            <span className="w-7 h-7 rounded-full bg-risk-green text-white text-xs font-bold flex items-center justify-center shrink-0">
+            <span className="w-7 h-7 rounded-full bg-risk-green text-white text-xs font-bold flex items-center justify-center shrink-0" aria-label={`Rank ${rank}`}>
               {rank}
             </span>
           )}
@@ -148,6 +150,7 @@ export function RecommendedHerbCard({
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -204,13 +207,13 @@ export function RecommendedHerbCard({
       )}
     </div>
   );
-}
+});
 
 // ============================================
 // CAUTION HERB CARD (YELLOW — usable with care)
 // ============================================
 
-export function CautionHerbCard({
+export const CautionHerbCard = memo(function CautionHerbCard({
   herb,
   onEvidenceClick,
 }: {
@@ -227,6 +230,8 @@ export function CautionHerbCard({
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 flex items-center justify-between gap-3"
+        aria-expanded={expanded}
+        aria-label={`${herb.herb_name} — caution, ${herb.cautions.length} warning${herb.cautions.length > 1 ? "s" : ""}. ${expanded ? "Collapse" : "Expand"} details.`}
       >
         <div className="flex items-center gap-3 min-w-0 flex-wrap">
           <h3 className="text-base font-bold text-gray-900 truncate">
@@ -240,6 +245,7 @@ export function CautionHerbCard({
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform duration-200 shrink-0 ${expanded ? "rotate-180" : ""}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -269,10 +275,11 @@ export function CautionHerbCard({
           </div>
 
           {/* warnings */}
-          <div className="space-y-2.5 mb-3">
+          <div className="space-y-2.5 mb-3" role="list" aria-label="Safety warnings">
             {herb.cautions.map((caution, i) => (
               <div
                 key={i}
+                role="listitem"
                 className="bg-risk-amber-light/60 rounded-xl p-3.5 text-sm border border-amber-200/50"
               >
                 <div className="flex items-center gap-2 mb-1.5 flex-wrap">
@@ -292,7 +299,7 @@ export function CautionHerbCard({
                 <p className="text-gray-700 text-sm leading-relaxed">{caution.explanation}</p>
                 {caution.clinical_action && (
                   <p className="text-xs text-risk-amber font-semibold mt-2 flex items-center gap-1">
-                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
                     </svg>
                     {caution.clinical_action}
@@ -307,13 +314,13 @@ export function CautionHerbCard({
       )}
     </div>
   );
-}
+});
 
 // ============================================
 // AVOID HERB CARD (RED — blocked)
 // ============================================
 
-export function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
+export const AvoidHerbCard = memo(function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
   const [expanded, setExpanded] = useState(false);
 
   const triggerLabel =
@@ -331,6 +338,8 @@ export function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="w-full text-left pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 flex items-center justify-between gap-3"
+        aria-expanded={expanded}
+        aria-label={`${herb.herb_name} — avoid. ${triggerLabel}. ${expanded ? "Collapse" : "Expand"} details.`}
       >
         <div className="flex items-center gap-3 min-w-0">
           <h3 className="text-base font-bold text-gray-900 truncate">
@@ -343,6 +352,7 @@ export function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
           <svg
             className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
             fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+            aria-hidden="true"
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
@@ -378,4 +388,4 @@ export function AvoidHerbCard({ herb }: { herb: AvoidRecommendation }) {
       )}
     </div>
   );
-}
+});

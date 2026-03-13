@@ -10,6 +10,15 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
+      keyframes: {
+        slideUp: {
+          "0%": { transform: "translateY(100%)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+      },
+      animation: {
+        "slide-up": "slideUp 0.3s ease-out forwards",
+      },
       colors: {
         risk: {
           red: "#DC2626",

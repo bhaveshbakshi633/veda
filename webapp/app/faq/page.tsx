@@ -59,6 +59,22 @@ const FAQS = [
     a: "Our safety profiles and dosage ranges are primarily based on adult data. Pediatric herb safety requires specialized guidance. We recommend consulting a qualified Ayurvedic practitioner or pediatrician for children's herbal use.",
   },
   {
+    q: "What if a herb I'm looking for isn't in the database?",
+    a: "We currently cover 50 of the most commonly used Ayurvedic herbs. If a herb isn't listed, it doesn't mean it's safe or unsafe — it means we haven't added clinical evidence for it yet. We're continuously expanding coverage. You can check the full herb list on our Herbs Database page.",
+  },
+  {
+    q: "How often is the safety data updated?",
+    a: "We review and update evidence claims, interaction data, and safety profiles regularly as new research is published. Each herb's evidence grade reflects the most current clinical data available. Major updates are noted in our changelog.",
+  },
+  {
+    q: "What's the difference between 'Recommended', 'Caution', and 'Avoid'?",
+    a: "Recommended means the herb has evidence for your concern and no known conflicts with your health profile. Caution means it may help but has warnings specific to your conditions or medications — discuss with your doctor. Avoid means there's a direct contraindication with your profile — do not use without medical supervision.",
+  },
+  {
+    q: "Can I use Ayurv if I'm pregnant or breastfeeding?",
+    a: "Yes — in fact, that's when Ayurv is most useful. Many Ayurvedic herbs are contraindicated during pregnancy. When you enter pregnancy/breastfeeding status, we flag all herbs with reproductive safety concerns. However, always verify with your OB-GYN or midwife.",
+  },
+  {
     q: "Who built Ayurv?",
     a: "Ayurv is built by a team passionate about making Ayurvedic knowledge more accessible and evidence-based. We combine traditional Ayurvedic wisdom with modern clinical research to help people make informed decisions about herbal supplements.",
   },

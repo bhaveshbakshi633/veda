@@ -65,6 +65,10 @@ input:focus, select:focus, textarea:focus {
   @page { margin: 1.5cm; }
 }
 
+/* scrollbar chhupane ke liye — horizontal scroll chips mein use hota hai */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 @layer components {
   .risk-badge-red {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-risk-red text-white;

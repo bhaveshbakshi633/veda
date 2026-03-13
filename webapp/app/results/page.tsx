@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { RiskAssessment } from "@/lib/types";
 import EmergencyOverlay from "@/components/EmergencyOverlay";
@@ -50,6 +50,7 @@ export default function ResultsPage() {
   const [loading, setLoading] = useState(true);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
 
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
@@ -89,8 +90,24 @@ export default function ResultsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]" role="status" aria-live="polite">
-        <div className="animate-pulse text-gray-400 text-sm">Loading results...</div>
+      <div className="max-w-3xl mx-auto" role="status" aria-live="polite" aria-label="Loading safety report">
+        {/* skeleton — mimics results page structure */}
+        <div className="animate-pulse">
+          <div className="h-4 w-48 bg-gray-200 rounded mb-2" />
+          <div className="h-7 w-72 bg-gray-200 rounded mb-1" />
+          <div className="h-4 w-64 bg-gray-200 rounded mb-6" />
+          <div className="bg-gray-100 rounded-xl p-4 mb-6"><div className="h-4 w-full bg-gray-200 rounded" /></div>
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-gray-200" />
+                <div className="h-5 w-40 bg-gray-200 rounded" />
+                <div className="h-5 w-16 bg-gray-200 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-sm text-gray-400 mt-6">Loading your safety report...</p>
       </div>
     );
   }
@@ -117,6 +134,28 @@ export default function ResultsPage() {
   function handleEvidenceClick(herbId: string, herbName: string) {
     setDrawerHerb({ id: herbId, name: herbName });
   }
+
+  // mobile bottom bar share handler — native share or clipboard fallback
+  const handleMobileShare = useCallback(async () => {
+    if (!result) return;
+    trackEvent("mobile_action_share");
+    const safe = result.recommended_herbs.map(h => h.herb_name).join(", ");
+    const avoid = result.avoid_herbs.map(h => h.herb_name).join(", ");
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck yours: ${origin}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Ayurv Safety Report", text });
+      } catch {
+        // user cancelled share — no-op
+      }
+    } else {
+      await navigator.clipboard.writeText(text);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2000);
+    }
+  }, [result]);
 
   return (
     <div className="max-w-3xl mx-auto pb-32">
@@ -280,7 +319,8 @@ export default function ResultsPage() {
             onClick={() => {
               const safe = result.recommended_herbs.map(h => h.herb_name).join(", ");
               const avoid = result.avoid_herbs.map(h => h.herb_name).join(", ");
-              const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe herbs: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck your herbs: https://webapp-self-rho.vercel.app`;
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe herbs: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck your herbs: ${origin}`;
               const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
               window.open(url, "_blank");
               trackEvent("report_shared", { method: "whatsapp" });
@@ -294,7 +334,8 @@ export default function ResultsPage() {
             onClick={async () => {
               const safe = result.recommended_herbs.map(h => h.herb_name).join(", ");
               const avoid = result.avoid_herbs.map(h => h.herb_name).join(", ");
-              const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck yours: https://webapp-self-rho.vercel.app`;
+              const origin = typeof window !== "undefined" ? window.location.origin : "";
+              const text = `Ayurv Herb Safety Report\n\nConcern: ${result.concern_label}\nSafe: ${safe || "none"}\nAvoid: ${avoid || "none"}\n\nCheck yours: ${origin}`;
               if (navigator.share) {
                 await navigator.share({ title: "Ayurv Safety Report", text });
                 trackEvent("report_shared", { method: "native_share" });
@@ -321,6 +362,7 @@ export default function ResultsPage() {
           </button>
           <button
             onClick={() => {
+              if (!window.confirm("This will clear your current assessment and chat data. Continue?")) return;
               sessionStorage.clear();
               router.push("/");
             }}
@@ -336,11 +378,78 @@ export default function ResultsPage() {
         <EmailCapture source="results" concern={result.concern_label} />
       </div>
 
+      {/* Mobile sticky bottom action bar — visible only on small screens */}
+      <div
+        className="fixed bottom-12 left-0 right-0 z-40 sm:hidden animate-slide-up no-print"
+        role="navigation"
+        aria-label="Quick actions"
+      >
+        <div className="bg-white border-t border-gray-200 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] px-2 py-2">
+          <div className="grid grid-cols-4 gap-1 max-w-lg mx-auto">
+            {/* Chat — primary CTA */}
+            <button
+              onClick={() => {
+                trackEvent("mobile_action_chat");
+                router.push("/chat");
+              }}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg bg-ayurv-primary text-white active:bg-ayurv-secondary transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              </svg>
+              <span className="text-[10px] font-medium leading-none">Chat</span>
+            </button>
+
+            {/* Print */}
+            <button
+              onClick={() => {
+                trackEvent("mobile_action_print");
+                window.print();
+              }}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-gray-600 active:bg-gray-100 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+              </svg>
+              <span className="text-[10px] font-medium leading-none">Print</span>
+            </button>
+
+            {/* Share */}
+            <button
+              onClick={handleMobileShare}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-gray-600 active:bg-gray-100 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" />
+              </svg>
+              <span className="text-[10px] font-medium leading-none">
+                {shareCopied ? "Copied!" : "Share"}
+              </span>
+            </button>
+
+            {/* New Assessment */}
+            <button
+              onClick={() => {
+                trackEvent("mobile_action_new");
+                sessionStorage.removeItem("ayurv_result");
+                router.push("/intake");
+              }}
+              className="flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-gray-600 active:bg-gray-100 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <span className="text-[10px] font-medium leading-none">New</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Scroll-to-top button */}
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-16 left-4 sm:bottom-20 sm:left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
+          className="fixed bottom-28 left-4 sm:bottom-20 sm:left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
           aria-label="Scroll to top"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5" aria-hidden="true">
