@@ -280,7 +280,7 @@ export default function ChatPage() {
         const updated = [...prev];
         updated[assistantIdx] = {
           ...updated[assistantIdx],
-          content: `Something went wrong: ${err instanceof Error ? err.message : "Unknown error"}.`,
+          content: `I wasn't able to provide a reliable answer to that question. This may involve clinical nuances that require a healthcare professional's judgment. Please discuss with your doctor or Ayurvedic practitioner for personalized guidance.`,
         };
         return updated;
       });

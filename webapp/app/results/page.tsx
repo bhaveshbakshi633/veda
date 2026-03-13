@@ -223,7 +223,7 @@ export default function ResultsPage() {
           </h2>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-gray-500">
-              Safe for your profile, ranked by strength of clinical evidence for {result.concern_label.toLowerCase()}.
+              No known contraindications for your profile. Ranked by evidence strength (A = strongest clinical evidence, D = preliminary).
             </p>
             {result.recommended_herbs.length + result.caution_herbs.length >= 2 && (
               <HerbCompare herbs={[...result.recommended_herbs, ...result.caution_herbs]} />
@@ -282,7 +282,7 @@ export default function ResultsPage() {
             Not Safe For You
           </h2>
           <p className="text-xs text-gray-500 mb-3">
-            These herbs could help with {result.concern_label.toLowerCase()} but conflict with your health profile.
+            These herbs have known risks with your conditions or medications. Do not use without consulting your doctor.
           </p>
           <div className="space-y-3">
             {result.avoid_herbs.map((herb) => (
