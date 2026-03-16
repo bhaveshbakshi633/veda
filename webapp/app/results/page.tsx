@@ -205,6 +205,53 @@ export default function ResultsPage() {
         <p className="text-sm text-gray-800">{getSummary(result)}</p>
       </div>
 
+      {/* 2a. Safety Score Gauge */}
+      {(() => {
+        const safe = result.recommended_herbs.length;
+        const caution = result.caution_herbs.length;
+        const avoid = result.avoid_herbs.length;
+        const total = safe + caution + avoid;
+        if (total === 0) return null;
+        // score: safe herbs = full points, caution = half, avoid = 0
+        const score = Math.round(((safe * 1.0 + caution * 0.4) / total) * 100);
+        const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
+        const bgColor = score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500";
+        const label = score >= 70 ? "Good" : score >= 40 ? "Moderate" : "Low";
+        return (
+          <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex items-center gap-4">
+            <div className="relative w-16 h-16 shrink-0">
+              <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                <path
+                  d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeDasharray={`${score}, 100`}
+                  className={color}
+                />
+              </svg>
+              <span className={`absolute inset-0 flex items-center justify-center text-lg font-bold ${color}`}>
+                {score}
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-gray-900">Safety Score: <span className={color}>{label}</span></p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {safe} safe, {caution} with cautions, {avoid} to avoid out of {total} relevant herbs
+              </p>
+              <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                <div className="h-full flex">
+                  {safe > 0 && <div className="bg-green-500 h-full" style={{ width: `${(safe / total) * 100}%` }} />}
+                  {caution > 0 && <div className="bg-amber-500 h-full" style={{ width: `${(caution / total) * 100}%` }} />}
+                  {avoid > 0 && <div className="bg-red-500 h-full" style={{ width: `${(avoid / total) * 100}%` }} />}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 2b. At-a-glance breakdown chips */}
       <div className="flex flex-wrap gap-2 mb-6">
         {result.recommended_herbs.length > 0 && (
