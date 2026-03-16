@@ -10,6 +10,7 @@ import { getFoodInteractions } from "@/lib/foodInteractions";
 import DosageCalculator from "@/components/DosageCalculator";
 import PersonalizedWarning from "@/components/PersonalizedWarning";
 import BookmarkButton from "@/components/BookmarkButton";
+import TrackHerbView from "@/components/TrackHerbView";
 
 // slug → herb_id mapping
 const SLUG_MAP: Record<string, string> = {
@@ -278,6 +279,9 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
             <BookmarkButton herbId={herbId} herbName={names.english} size="lg" />
           </div>
         </div>
+
+        {/* track this herb view in recent history */}
+        <TrackHerbView herbId={herbId} herbName={names.english} slug={slug} />
 
         {/* personalized warning banner — checks user's saved profile */}
         <PersonalizedWarning herbId={herbId} herbName={names.english} />

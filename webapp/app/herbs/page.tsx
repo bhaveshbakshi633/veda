@@ -5,6 +5,7 @@ import Link from "next/link";
 import { HERB_LIST } from "@/components/intake/constants";
 import { trackEvent } from "@/lib/track";
 import { getPregnancySafety, type PregnancySafetyLevel } from "@/lib/pregnancySafety";
+import RecentHerbs from "@/components/RecentHerbs";
 
 // herb_id → URL slug mapping — isko touch mat karna
 const ID_TO_SLUG: Record<string, string> = {
@@ -111,6 +112,8 @@ export default function HerbsIndexPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
+      <RecentHerbs />
+
       <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
         Ayurvedic Herb Database
       </h1>
