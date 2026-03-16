@@ -471,6 +471,21 @@ export default function LandingPage() {
               Takes about 2 minutes. Your data stays in your browser.
             </p>
           )}
+
+          {/* Easy Mode CTA — elderly-friendly single page */}
+          <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl text-center">
+            <p className="text-sm font-semibold text-blue-800 mb-2">Prefer a simpler experience?</p>
+            <a
+              href="/easy"
+              className="inline-flex items-center gap-2 px-6 py-3.5 bg-blue-600 text-white text-base font-bold rounded-xl hover:bg-blue-700 transition-all shadow-md"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Easy Mode — Single Page
+            </a>
+            <p className="text-xs text-blue-600 mt-2">Large buttons, no page hops, results on same page</p>
+          </div>
         </div>
       </section>
     </div>
