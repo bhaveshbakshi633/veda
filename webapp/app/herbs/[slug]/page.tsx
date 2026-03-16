@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getServiceClient } from "@/lib/supabase";
 import { HERB_LIST } from "@/components/intake/constants";
 import { getPregnancySafety } from "@/lib/pregnancySafety";
+import DosageCalculator from "@/components/DosageCalculator";
 
 // slug → herb_id mapping
 const SLUG_MAP: Record<string, string> = {
@@ -306,7 +307,7 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
 
         <div className="grid sm:grid-cols-2 gap-6 mb-6">
           {/* dosage */}
-          {dosage_ranges?.forms?.length > 0 && (
+          {dosage_ranges?.forms?.length > 0 && (<>
             <section className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-3">Standard Dosage</h2>
               <div className="space-y-3">
@@ -342,7 +343,10 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
               )}
               <p className="text-xs text-gray-400 mt-2 italic">{dosage_ranges.disclaimer}</p>
             </section>
-          )}
+
+            {/* interactive dosage calculator */}
+            <DosageCalculator herbName={names.english} forms={dosage_ranges.forms} />
+          </>)}
 
           {/* ayurvedic profile */}
           {ayurvedic_profile && (
