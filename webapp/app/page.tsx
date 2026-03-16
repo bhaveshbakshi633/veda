@@ -6,6 +6,7 @@ import { getOrCreateUid, hasAcceptedDisclaimer, saveDisclaimerAccepted } from "@
 import { trackEvent } from "@/lib/track";
 import { getCurrentSeason } from "@/lib/seasonal";
 import { getHerbOfTheDay } from "@/lib/herbOfTheDay";
+import QuickHerbSearch from "@/components/QuickHerbSearch";
 
 const DISCLAIMER_CHECKS = [
   {
@@ -188,6 +189,9 @@ export default function LandingPage() {
             Evidence-graded claims
           </span>
         </div>
+
+        {/* quick herb search */}
+        <QuickHerbSearch />
       </section>
 
       {/* ---- Welcome Back Banner ---- */}
