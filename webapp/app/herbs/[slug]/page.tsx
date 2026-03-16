@@ -6,6 +6,7 @@ import { HERB_LIST } from "@/components/intake/constants";
 import { getPregnancySafety } from "@/lib/pregnancySafety";
 import { getSynergiesForHerb } from "@/lib/herbSynergies";
 import { getSubstitutions } from "@/lib/herbSubstitutions";
+import { getFoodInteractions } from "@/lib/foodInteractions";
 import DosageCalculator from "@/components/DosageCalculator";
 
 // slug → herb_id mapping
@@ -432,6 +433,72 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
             )}
           </section>
         )}
+
+        {/* food interactions — "Food & Timing Guide" */}
+        {(() => {
+          const foods = getFoodInteractions(herbId);
+          if (foods.length === 0) return null;
+          const avoid = foods.filter(f => f.type === "avoid");
+          const enhance = foods.filter(f => f.type === "enhance");
+          const timing = foods.filter(f => f.type === "timing");
+          return (
+            <section className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm mb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Food & Timing Guide</h2>
+              <p className="text-xs text-gray-500 mb-4">What to eat (and avoid) when taking {names.english}</p>
+              <div className="space-y-4">
+                {enhance.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-green-500 rounded-full" />
+                      Take With
+                    </h3>
+                    <div className="space-y-2">
+                      {enhance.map((f, i) => (
+                        <div key={i} className="flex items-start gap-3 bg-green-50/50 border border-green-100 rounded-lg px-3 py-2.5">
+                          <span className="text-sm font-medium text-green-800 shrink-0 min-w-[100px]">{f.food}</span>
+                          <span className="text-xs text-gray-600">{f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {avoid.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-red-500 rounded-full" />
+                      Avoid With
+                    </h3>
+                    <div className="space-y-2">
+                      {avoid.map((f, i) => (
+                        <div key={i} className="flex items-start gap-3 bg-red-50/50 border border-red-100 rounded-lg px-3 py-2.5">
+                          <span className="text-sm font-medium text-red-800 shrink-0 min-w-[100px]">{f.food}</span>
+                          <span className="text-xs text-gray-600">{f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {timing.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                      Timing Tips
+                    </h3>
+                    <div className="space-y-2">
+                      {timing.map((f, i) => (
+                        <div key={i} className="flex items-start gap-3 bg-blue-50/50 border border-blue-100 rounded-lg px-3 py-2.5">
+                          <span className="text-sm font-medium text-blue-800 shrink-0 min-w-[100px]">{f.food}</span>
+                          <span className="text-xs text-gray-600">{f.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-3 italic">Based on Ayurvedic pathya-apathya principles and pharmacokinetic evidence.</p>
+            </section>
+          );
+        })()}
 
         {/* synergy pairings — "Works Best With" */}
         {(() => {
