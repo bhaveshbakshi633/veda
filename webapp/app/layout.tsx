@@ -5,6 +5,7 @@ import "./globals.css";
 import DisclaimerFooter from "@/components/DisclaimerFooter";
 import MobileNav from "@/components/MobileNav";
 import FontSizeToggle from "@/components/FontSizeToggle";
+import ScrollProgress from "@/components/ScrollProgress";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -106,6 +107,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
 
+        <ScrollProgress />
         <DisclaimerFooter />
         <Analytics />
         <SpeedInsights />

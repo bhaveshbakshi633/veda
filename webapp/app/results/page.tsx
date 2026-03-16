@@ -51,7 +51,7 @@ export default function ResultsPage() {
   const [result, setResult] = useState<RiskAssessment | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
+  // showScrollTop removed — now handled by global ScrollProgress
   const [shareCopied, setShareCopied] = useState(false);
   const [doshaScore, setDoshaScore] = useState<DoshaScore | null>(null);
 
@@ -113,13 +113,7 @@ export default function ResultsPage() {
     }
   }, [router]);
 
-  useEffect(() => {
-    function handleScroll() {
-      setShowScrollTop(window.scrollY > 600);
-    }
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  // scroll listener removed — global ScrollProgress handles back-to-top
 
   if (loading) {
     return (
@@ -550,18 +544,7 @@ export default function ResultsPage() {
         </div>
       </div>
 
-      {/* Scroll-to-top button */}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-28 left-4 sm:bottom-20 sm:left-6 bg-white text-gray-600 rounded-full w-10 h-10 shadow-md flex items-center justify-center hover:bg-gray-100 transition-colors z-40 border border-gray-200"
-          aria-label="Scroll to top"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5" aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-          </svg>
-        </button>
-      )}
+      {/* Scroll-to-top — now handled by global ScrollProgress component */}
 
       {/* Evidence Drawer */}
       <EvidenceDrawer
