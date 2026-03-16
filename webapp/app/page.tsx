@@ -42,6 +42,7 @@ export default function HomePage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
 
+  const [showValidation, setShowValidation] = useState(false); // inline validation dikhana hai ya nahi
   const resultsRef = useRef<HTMLDivElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
 
@@ -109,7 +110,11 @@ export default function HomePage() {
 
   // ─── submit ───
   async function handleSubmit() {
-    if (!isFormComplete || submitting) return;
+    if (!isFormComplete) {
+      setShowValidation(true);
+      return;
+    }
+    if (submitting) return;
     setSubmitting(true);
     setError(null);
     setResult(null);
@@ -179,10 +184,12 @@ export default function HomePage() {
   }
 
   function startOver() {
+    if (!confirm("Start a new assessment? This will clear your current results.")) return;
     setResult(null);
     setForm(createInitialFormState());
     setError(null);
     setDisclaimerChecked(false);
+    setShowValidation(false);
     sessionStorage.removeItem("ayurv_result");
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -237,7 +244,15 @@ export default function HomePage() {
 
       {/* ═══════ SECTION 2: ABOUT YOU ═══════ */}
       <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">1. About You</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">1. About You</h2>
+          {showValidation && form.age && form.sex && form.pregnancy_status && form.has_red_flags !== null && !hasActiveRedFlags && (
+            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
+              Done
+            </span>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mb-5">Basic info so we can check herb safety for your profile.</p>
 
         {/* returning user */}
@@ -256,7 +271,12 @@ export default function HomePage() {
         <div className="space-y-5">
           {/* age */}
           <div>
-            <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+            <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1.5">
+              Age
+              {showValidation && (!form.age || Number(form.age) < 1 || Number(form.age) > 120) && (
+                <span className="text-red-500 text-xs ml-2 font-normal">Required (1-120)</span>
+              )}
+            </label>
             <input
               id="age" type="number" inputMode="numeric" min={1} max={120}
               value={form.age}
@@ -268,7 +288,12 @@ export default function HomePage() {
 
           {/* sex */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Biological Sex</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Biological Sex
+              {showValidation && !form.sex && (
+                <span className="text-red-500 text-xs ml-2 font-normal">Please select</span>
+              )}
+            </label>
             <div className="grid grid-cols-3 gap-3">
               {[{ v: "male", l: "Male" }, { v: "female", l: "Female" }, { v: "other", l: "Other" }].map(opt => (
                 <button key={opt.v} type="button"
@@ -367,14 +392,35 @@ export default function HomePage() {
 
       {/* ═══════ SECTION 3: HEALTH PROFILE ═══════ */}
       <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">2. Your Health Profile</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">2. Your Health Profile</h2>
+          {showValidation && form.has_conditions !== null && form.has_medications !== null &&
+            (form.has_conditions === false || form.chronic_conditions.length > 0) &&
+            (form.has_medications === false || form.medications.length > 0) && (
+            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
+              Done
+            </span>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mb-5">Conditions and medications — so we can check for interactions.</p>
         <StepHealth form={form} setForm={setForm} />
       </section>
 
       {/* ═══════ SECTION 4: YOUR CONCERN ═══════ */}
       <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">3. What Do You Need Help With?</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">3. What Do You Need Help With?</h2>
+          {showValidation && form.symptom_primary && (
+            <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /></svg>
+              Done
+            </span>
+          )}
+          {showValidation && !form.symptom_primary && (
+            <span className="text-xs text-red-500 font-medium">Please select one</span>
+          )}
+        </div>
         <p className="text-xs text-gray-500 mb-5">Pick your main health concern.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {visibleConcerns.map(opt => (
@@ -406,11 +452,13 @@ export default function HomePage() {
             ref={submitRef}
             type="button"
             onClick={handleSubmit}
-            disabled={!isFormComplete || submitting}
+            disabled={submitting}
             className={`w-full py-4 rounded-2xl text-base font-bold transition-all duration-300 ${
               isFormComplete && !submitting
                 ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-lg shadow-ayurv-primary/25 hover:shadow-xl active:scale-[0.98]"
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : submitting
+                  ? "bg-gray-200 text-gray-400 cursor-wait"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer"
             }`}
           >
             {submitting ? (

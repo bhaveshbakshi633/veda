@@ -43,9 +43,13 @@ function getClientIP(req: NextRequest): string {
 export function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
-  // Only rate-limit API routes
+  // non-API routes — security headers only, no rate limiting
   const limit = LIMITS[path];
-  if (!limit) return NextResponse.next();
+  if (!limit) {
+    const res = NextResponse.next();
+    setSecurityHeaders(res);
+    return res;
+  }
 
   const ip = getClientIP(req);
   const key = `${ip}:${path}`;
@@ -85,9 +89,57 @@ export function middleware(req: NextRequest) {
   res.headers.set("X-RateLimit-Limit", String(limit));
   res.headers.set("X-RateLimit-Remaining", String(remaining));
   res.headers.set("X-RateLimit-Reset", String(Math.ceil(entry.resetAt / 1000)));
+
+  // security headers — sabhi API responses pe
+  setSecurityHeaders(res);
   return res;
 }
 
+// ============================================
+// SECURITY HEADERS — industry standard
+// ============================================
+
+function setSecurityHeaders(res: NextResponse) {
+  // XSS protection
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-XSS-Protection", "1; mode=block");
+
+  // HSTS — force HTTPS (1 year, include subdomains)
+  res.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+
+  // referrer policy — health data leak mat hone dena
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  // permissions policy — unnecessary browser APIs block karo
+  res.headers.set(
+    "Permissions-Policy",
+    "camera=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), microphone=(self)"
+  );
+
+  // CSP — basic but effective
+  res.headers.set(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.supabase.co https://*.vercel-insights.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+  );
+}
+
 export const config = {
-  matcher: ["/api/assess", "/api/chat", "/api/evidence", "/api/user", "/api/profile", "/api/user/history", "/api/waitlist", "/api/interactions", "/api/stats"],
+  matcher: [
+    "/api/assess", "/api/chat", "/api/evidence", "/api/user", "/api/profile",
+    "/api/user/history", "/api/waitlist", "/api/interactions", "/api/stats",
+    "/api/health",
+    // security headers sabhi pages pe lagao
+    "/((?!_next/static|_next/image|favicon|icon|manifest|og-image|sitemap|robots).*)",
+  ],
 };
