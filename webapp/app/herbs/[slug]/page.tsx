@@ -8,6 +8,7 @@ import { getSynergiesForHerb } from "@/lib/herbSynergies";
 import { getSubstitutions } from "@/lib/herbSubstitutions";
 import { getFoodInteractions } from "@/lib/foodInteractions";
 import DosageCalculator from "@/components/DosageCalculator";
+import PersonalizedWarning from "@/components/PersonalizedWarning";
 
 // slug → herb_id mapping
 const SLUG_MAP: Record<string, string> = {
@@ -273,6 +274,9 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
             </svg>
           </Link>
         </div>
+
+        {/* personalized warning banner — checks user's saved profile */}
+        <PersonalizedWarning herbId={herbId} herbName={names.english} />
 
         {/* evidence claims */}
         {claims.length > 0 && (
