@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getOrCreateUid, hasAcceptedDisclaimer, saveDisclaimerAccepted } from "@/lib/storage";
 import { trackEvent } from "@/lib/track";
+import { getCurrentSeason } from "@/lib/seasonal";
 
 const DISCLAIMER_CHECKS = [
   {
@@ -237,6 +238,37 @@ export default function LandingPage() {
           </div>
         ))}
       </section>
+
+      {/* ---- Seasonal Recommendations ---- */}
+      {(() => {
+        const season = getCurrentSeason();
+        return (
+          <section className="mb-12 bg-gradient-to-br from-ayurv-primary/5 to-green-50/50 border border-ayurv-primary/10 rounded-2xl p-6">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-lg">🌿</span>
+              <h2 className="text-lg font-bold text-gray-900">{season.name}</h2>
+              <span className="text-xs text-gray-500">({season.english} · {season.months})</span>
+            </div>
+            <p className="text-xs text-gray-600 mb-4">{season.description}</p>
+            <p className="text-[11px] font-medium text-ayurv-primary mb-2">Recommended herbs this season:</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+              {season.herbs.map(herb => (
+                <div key={herb.id} className="bg-white rounded-lg border border-gray-200 px-3 py-2.5">
+                  <p className="text-sm font-semibold text-gray-800">{herb.name}</p>
+                  <p className="text-[10px] text-gray-500 leading-snug mt-0.5">{herb.reason}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {season.diet_tips.map((tip, i) => (
+                <span key={i} className="text-[10px] text-gray-500 bg-white/80 px-2 py-1 rounded-full border border-gray-100">
+                  {tip}
+                </span>
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* ---- Credibility Section ---- */}
       <section className="mb-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
