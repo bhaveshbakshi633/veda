@@ -5,6 +5,7 @@ import { getServiceClient } from "@/lib/supabase";
 import { HERB_LIST } from "@/components/intake/constants";
 import { getPregnancySafety } from "@/lib/pregnancySafety";
 import { getSynergiesForHerb } from "@/lib/herbSynergies";
+import { getSubstitutions } from "@/lib/herbSubstitutions";
 import DosageCalculator from "@/components/DosageCalculator";
 
 // slug → herb_id mapping
@@ -466,6 +467,41 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
                   );
                 })}
               </div>
+            </section>
+          );
+        })()}
+
+        {/* herb substitutions — "Can't find this herb?" */}
+        {(() => {
+          const subs = getSubstitutions(herbId);
+          if (subs.length === 0) return null;
+          return (
+            <section className="bg-amber-50/50 border border-amber-200/50 rounded-2xl p-6 sm:p-8 mb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Can&apos;t find {names.english}?</h2>
+              <p className="text-xs text-gray-500 mb-4">These herbs have similar therapeutic actions and may serve as alternatives.</p>
+              <div className="space-y-2">
+                {subs.map(sub => {
+                  const subSlug = slugFromId(sub.id);
+                  return (
+                    <div key={sub.id} className="flex items-center gap-3 bg-white rounded-lg border border-gray-200 px-4 py-3">
+                      <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center text-[10px] font-bold text-amber-700 shrink-0">&harr;</span>
+                      <div className="flex-1 min-w-0">
+                        {subSlug ? (
+                          <Link href={`/herbs/${subSlug}`} className="text-sm font-semibold text-ayurv-primary hover:underline">
+                            {sub.name}
+                          </Link>
+                        ) : (
+                          <span className="text-sm font-semibold text-gray-800">{sub.name}</span>
+                        )}
+                        <p className="text-xs text-gray-500 truncate">{sub.reason}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-amber-600/80 mt-3">
+                Substitutions are based on shared mechanisms, not identical effects. Discuss with your practitioner.
+              </p>
             </section>
           );
         })()}
