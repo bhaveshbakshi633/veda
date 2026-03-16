@@ -257,18 +257,41 @@ export default function EvidenceDrawer({
                   </div>
                 )}
 
-                {/* key references */}
+                {/* key references — PubMed links for clinical credibility */}
                 {claim.key_references && claim.key_references.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-gray-500">
-                      Key References
+                    <p className="text-xs font-medium text-gray-500 mb-1">
+                      Key References ({claim.key_references.length})
                     </p>
-                    <ul className="text-xs text-gray-600 space-y-0.5">
-                      {claim.key_references.map((ref, i) => (
-                        <li key={i}>
-                          {ref.author} {ref.year}, {ref.journal}
-                        </li>
-                      ))}
+                    <ul className="text-xs text-gray-600 space-y-1.5">
+                      {claim.key_references.map((ref, i) => {
+                        const pubmedQuery = encodeURIComponent(
+                          `${ref.author} ${ref.year} ${ref.title || ref.journal}`
+                        );
+                        return (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-gray-400 mt-0.5 shrink-0">{i + 1}.</span>
+                            <div>
+                              <span className="text-gray-700 font-medium">{ref.author}</span>{" "}
+                              ({ref.year}). <span className="italic">{ref.journal}</span>
+                              {ref.title && (
+                                <p className="text-gray-500 mt-0.5">&ldquo;{ref.title}&rdquo;</p>
+                              )}
+                              <a
+                                href={`https://pubmed.ncbi.nlm.nih.gov/?term=${pubmedQuery}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-ayurv-primary hover:underline font-medium inline-flex items-center gap-0.5 mt-0.5"
+                              >
+                                Search on PubMed
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                </svg>
+                              </a>
+                            </div>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 )}

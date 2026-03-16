@@ -1,7 +1,41 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
+// system status indicator — health endpoint se fetch karta hai
+function StatusDot() {
+  const [status, setStatus] = useState<"healthy" | "degraded" | "down" | "loading">("loading");
+
+  useEffect(() => {
+    // page load hone ke baad check karo, lazy
+    const timer = setTimeout(() => {
+      fetch("/api/health")
+        .then(res => res.json())
+        .then(data => setStatus(data.status))
+        .catch(() => setStatus("down"));
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const color =
+    status === "healthy" ? "bg-green-400" :
+    status === "degraded" ? "bg-amber-400" :
+    status === "loading" ? "bg-gray-300" : "bg-red-400";
+
+  const label =
+    status === "healthy" ? "All systems operational" :
+    status === "degraded" ? "Partial service degradation" :
+    status === "loading" ? "Checking..." : "Service disruption";
+
+  return (
+    <span className="inline-flex items-center gap-1 cursor-default" title={label}>
+      <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+      <span className="hidden sm:inline">{status === "healthy" ? "OK" : status === "degraded" ? "Degraded" : status === "loading" ? "" : "Down"}</span>
+    </span>
+  );
+}
 
 export default function DisclaimerFooter() {
   const pathname = usePathname();
@@ -26,6 +60,8 @@ export default function DisclaimerFooter() {
           <Link href="/privacy" aria-label="Privacy policy" className="hover:text-ayurv-primary transition-colors">Privacy</Link>
           <span className="text-gray-300">&middot;</span>
           <Link href="/terms" aria-label="Terms and conditions" className="hover:text-ayurv-primary transition-colors">Terms</Link>
+          <span className="text-gray-300">&middot;</span>
+          <StatusDot />
         </div>
       </div>
     </footer>
