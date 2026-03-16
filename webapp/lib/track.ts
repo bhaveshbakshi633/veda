@@ -27,7 +27,8 @@ type AyurvEvent =
   | "mobile_action_chat"
   | "mobile_action_print"
   | "mobile_action_share"
-  | "mobile_action_new";
+  | "mobile_action_new"
+  | "pregnancy_filter";
 
 // track with optional properties (no PII — never track user input or health data)
 export function trackEvent(event: AyurvEvent, props?: Record<string, string | number | boolean>) {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getServiceClient } from "@/lib/supabase";
 import { HERB_LIST } from "@/components/intake/constants";
+import { getPregnancySafety } from "@/lib/pregnancySafety";
 
 // slug → herb_id mapping
 const SLUG_MAP: Record<string, string> = {
@@ -242,6 +243,21 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
                 {part}
               </span>
             ))}
+            {/* pregnancy safety badge */}
+            {(() => {
+              const ps = getPregnancySafety(herbId);
+              if (ps.level === "unknown") return null;
+              const style = ps.level === "safe"
+                ? "bg-green-50 text-green-700 border-green-300"
+                : ps.level === "caution"
+                  ? "bg-amber-50 text-amber-700 border-amber-300"
+                  : "bg-red-50 text-red-700 border-red-300";
+              return (
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${style}`} title={ps.note}>
+                  {ps.level === "safe" ? "\u2713" : ps.level === "caution" ? "\u26A0" : "\u2717"} {ps.label}
+                </span>
+              );
+            })()}
           </div>
           <Link
             href="/"

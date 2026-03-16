@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import { HERB_LIST } from "@/components/intake/constants";
 import { trackEvent } from "@/lib/track";
+import { getPregnancySafety, type PregnancySafetyLevel } from "@/lib/pregnancySafety";
 
 // herb_id → URL slug mapping — isko touch mat karna
 const ID_TO_SLUG: Record<string, string> = {
@@ -48,6 +49,7 @@ type TimerRef = ReturnType<typeof setTimeout> | null;
 export default function HerbsIndexPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
+  const [pregnancyFilter, setPregnancyFilter] = useState<PregnancySafetyLevel | "all">("all");
   // search tracking ke liye debounce — har keystroke pe track nahi karna
   const debounceRef = useRef<TimerRef>(null);
 
@@ -94,9 +96,15 @@ export default function HerbsIndexPage() {
         if (!nameMatch && !hindiMatch && !slugMatch) return false;
       }
 
+      // pregnancy safety filter
+      if (pregnancyFilter !== "all") {
+        const safety = getPregnancySafety(herb.id);
+        if (safety.level !== pregnancyFilter) return false;
+      }
+
       return true;
     });
-  }, [searchQuery, activeCategory]);
+  }, [searchQuery, activeCategory, pregnancyFilter]);
 
   // total herbs count — sirf valid slug waale
   const totalHerbs = HERB_LIST.filter((h) => ID_TO_SLUG[h.id]).length;
@@ -159,6 +167,35 @@ export default function HerbsIndexPage() {
         })}
       </div>
 
+      {/* pregnancy safety filter */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-xs text-gray-500 font-medium shrink-0">Pregnancy:</span>
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+          {([
+            { key: "all" as const, label: "All", color: "bg-white text-gray-600 border-gray-200" },
+            { key: "safe" as const, label: "Safe", color: "bg-green-50 text-green-700 border-green-200" },
+            { key: "caution" as const, label: "Caution", color: "bg-amber-50 text-amber-700 border-amber-200" },
+            { key: "avoid" as const, label: "Avoid", color: "bg-red-50 text-red-700 border-red-200" },
+          ] as const).map(({ key, label, color }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => {
+                setPregnancyFilter(key);
+                if (key !== "all") trackEvent("pregnancy_filter", { level: key });
+              }}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                pregnancyFilter === key
+                  ? `${color} ring-1 ring-current shadow-sm`
+                  : "bg-white text-gray-400 border-gray-200 hover:border-gray-300"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* result count */}
       <p className="text-xs text-ayurv-muted mb-3">
         Showing {filteredHerbs.length} of {totalHerbs} herbs
@@ -183,6 +220,22 @@ export default function HerbsIndexPage() {
                 {herb.hindi && (
                   <span className="block text-xs text-gray-400 mt-0.5">{herb.hindi}</span>
                 )}
+                {/* pregnancy safety badge */}
+                {(() => {
+                  const ps = getPregnancySafety(herb.id);
+                  if (ps.level === "unknown") return null;
+                  const badgeStyle = ps.level === "safe"
+                    ? "bg-green-50 text-green-600 border-green-200"
+                    : ps.level === "caution"
+                      ? "bg-amber-50 text-amber-600 border-amber-200"
+                      : "bg-red-50 text-red-600 border-red-200";
+                  const icon = ps.level === "safe" ? "\u2713" : ps.level === "caution" ? "!" : "\u2717";
+                  return (
+                    <span className={`inline-flex items-center gap-0.5 mt-1.5 px-1.5 py-0.5 rounded text-[10px] font-medium border ${badgeStyle}`}>
+                      <span className="font-bold">{icon}</span> {ps.label}
+                    </span>
+                  );
+                })()}
               </Link>
             );
           })}
