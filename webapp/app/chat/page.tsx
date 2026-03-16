@@ -52,6 +52,8 @@ export default function ChatPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<ReturnType<typeof createRecognition> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // abort controller — SSE stream cancel karne ke liye
+  const abortRef = useRef<AbortController | null>(null);
 
   // check STT support
   useEffect(() => {
@@ -137,6 +139,8 @@ export default function ChatPage() {
   async function sendInitStreaming(result: RiskAssessment) {
     setSending(true);
     setMessages([{ id: nextMsgId(), role: "assistant", content: "" }]);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const res = await fetch("/api/chat", {
@@ -150,31 +154,43 @@ export default function ChatPage() {
           stream: true,
           language,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) throw new Error("Failed to load recommendations");
-      await processStream(res, 0);
+      await processStream(res, 0, controller.signal);
       setInitDone(true);
     } catch (err) {
-      setMessages([{
-        id: nextMsgId(),
-        role: "assistant",
-        content: `Something went wrong loading your recommendations. ${err instanceof Error ? err.message : ""} Please try refreshing.`,
-      }]);
-      setInitDone(true);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // user ne cancel kiya — jo aaya hai woh rakh do
+        setInitDone(true);
+      } else {
+        setMessages([{
+          id: nextMsgId(),
+          role: "assistant",
+          content: `Something went wrong loading your recommendations. ${err instanceof Error ? err.message : ""} Please try refreshing.`,
+        }]);
+        setInitDone(true);
+      }
     } finally {
       setSending(false);
+      abortRef.current = null;
     }
   }
 
   // ─── Process SSE stream ───
-  async function processStream(res: globalThis.Response, assistantIdx: number) {
+  async function processStream(res: globalThis.Response, assistantIdx: number, signal?: AbortSignal) {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
     let fullText = "";
 
     while (true) {
+      // abort check — user ne stop daba diya toh reader cancel karo
+      if (signal?.aborted) {
+        await reader.cancel();
+        break;
+      }
       const { done, value } = await reader.read();
       if (done) break;
 
@@ -242,6 +258,8 @@ export default function ChatPage() {
     setInput("");
     setSending(true);
     setLastFailedMessage(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const history = currentHistory.map(m => ({ role: m.role, content: m.content }));
@@ -257,6 +275,7 @@ export default function ChatPage() {
           voice_mode: voiceMode,
           language,
         }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -267,14 +286,14 @@ export default function ChatPage() {
       // check if response is SSE or JSON (safety responses are JSON)
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("text/event-stream")) {
-        const fullText = await processStream(res, assistantIdx);
+        const fullText = await processStream(res, assistantIdx, controller.signal);
 
         // voice mode: auto-speak response
         if (voiceMode && fullText) {
           speakText(fullText, assistantIdx);
         }
       } else {
-        // JSON response (escalation, unknown herb, etc.)
+        // JSON response (escalation, unknown herb, off-topic, etc.)
         const data = await res.json();
         setMessages(prev => {
           const updated = [...prev];
@@ -288,19 +307,25 @@ export default function ChatPage() {
         if (data.escalation) setEscalated(true);
       }
     } catch (err) {
-      const failedText = text;
-      setMessages(prev => {
-        const updated = [...prev];
-        updated[assistantIdx] = {
-          ...updated[assistantIdx],
-          content: `I wasn't able to provide a reliable answer to that question. This may involve clinical nuances that require a healthcare professional's judgment. Please discuss with your doctor or Ayurvedic practitioner for personalized guidance.`,
-        };
-        return updated;
-      });
-      // stash failed message so retry button can resend
-      setLastFailedMessage(failedText);
+      // user ne stop kiya — jo text aaya hai woh rakh do, error mat dikhao
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // stream cancelled — partial response already in state
+      } else {
+        const failedText = text;
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[assistantIdx] = {
+            ...updated[assistantIdx],
+            content: `I wasn't able to provide a reliable answer to that question. This may involve clinical nuances that require a healthcare professional's judgment. Please discuss with your doctor or Ayurvedic practitioner for personalized guidance.`,
+          };
+          return updated;
+        });
+        // stash failed message so retry button can resend
+        setLastFailedMessage(failedText);
+      }
     } finally {
       setSending(false);
+      abortRef.current = null;
     }
   }, [sessionId, messages, sending, voiceMode, language]);
 
@@ -864,19 +889,33 @@ export default function ChatPage() {
                     target.style.height = Math.min(target.scrollHeight, 112) + "px";
                   }}
                 />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || sending || !initDone}
-                  className={`mr-1.5 mb-1.5 p-2 rounded-lg transition-all shrink-0 ${
-                    input.trim() && !sending && initDone
-                      ? "bg-ayurv-primary text-white shadow-sm hover:bg-ayurv-secondary"
-                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-                  </svg>
-                </button>
+                {/* send ya stop button — sending ke time stop dikhao */}
+                {sending ? (
+                  <button
+                    type="button"
+                    onClick={() => abortRef.current?.abort()}
+                    className="mr-1.5 mb-1.5 p-2 rounded-lg transition-all shrink-0 bg-risk-red text-white shadow-sm hover:bg-red-600 animate-pulse"
+                    title="Stop generating"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || !initDone}
+                    className={`mr-1.5 mb-1.5 p-2 rounded-lg transition-all shrink-0 ${
+                      input.trim() && initDone
+                        ? "bg-ayurv-primary text-white shadow-sm hover:bg-ayurv-secondary"
+                        : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                    </svg>
+                  </button>
+                )}
               </div>
               {/* mic button — always visible if STT supported, quick voice input */}
               {sttSupported && !voiceMode && (

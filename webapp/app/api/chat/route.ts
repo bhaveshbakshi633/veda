@@ -204,6 +204,65 @@ function detectHerbsInMessage(message: string): string[] {
 }
 
 // ============================================
+// OFF-TOPIC DETECTION — ye LLM se pehle run hota hai
+// ============================================
+// coding, math, politics, entertainment jaisi irrelevant queries ko
+// LLM tak jaane se pehle rok do — deterministic, fast, no LLM call
+
+const OFF_TOPIC_PATTERNS: RegExp[] = [
+  // programming / coding
+  /\b(?:sort|sorting|linked\s*list|array|algorithm|binary\s*tree|hash\s*map|stack|queue|recursion|loop|function|variable|class|object|pointer|compile|runtime|debug|syntax|API|endpoint|REST|GraphQL|SQL|database|SELECT|INSERT|UPDATE|DELETE|CREATE\s*TABLE|git|commit|merge|branch|pull\s*request|docker|kubernetes|nginx|webpack|npm|pip|yarn|node\.?js|react|angular|vue|python|java(?:script)?|typescript|c\+\+|rust|golang|swift|kotlin|ruby|php|html|css|json|xml|regex|http|tcp|udp|DNS|IP\s*address|server|client|frontend|backend|fullstack|devops|CI\/CD|testing|unit\s*test|mock|stub)\b/i,
+  // math / science (non-health)
+  /\b(?:calculus|integral|derivative|matrix|eigen|vector|tensor|linear\s*algebra|differential\s*equation|probability|statistics|theorem|proof|lemma|logarithm|factorial|permutation|combination|trigonometry|geometry|quadratic|polynomial|fibonacci|prime\s*number|greatest\s*common|least\s*common)\b/i,
+  // politics / news / entertainment
+  /\b(?:election|president|prime\s*minister|parliament|congress|BJP|AAP|modi|rahul|trump|biden|political|party|vote|cricket|football|soccer|basketball|tennis|IPL|world\s*cup|movie|film|bollywood|hollywood|netflix|spotify|song|music|singer|actor|actress|celebrity|gossip|stock\s*market|bitcoin|crypto|NFT|forex|trading)\b/i,
+  // general non-health knowledge
+  /\b(?:recipe|cook(?:ing)?|bak(?:e|ing)|capital\s*of|population\s*of|history\s*of|geography|country|continent|planet|solar\s*system|universe|physics|chemistry|quantum|relativity|evolution|dinosaur|space\s*station|rocket|satellite|weather\s*forecast|climate\s*change)\b/i,
+];
+
+// health/ayurveda terms — agar ye milte hain toh off-topic nahi hai
+const ON_TOPIC_PATTERNS: RegExp[] = [
+  /\b(?:herb|ayurved|dosage|dose|safety|side\s*effect|interact|contrain|symptom|condition|disease|illness|medic|health|wellness|diagnos|treat|therap|cure|remedy|supplement|vitamin|mineral|nutrition|diet|fast|detox|cleans|immun|inflam|pain|fever|cold|cough|headache|nausea|vomit|diarr|constip|bloat|digest|gut|liver|kidney|heart|blood|sugar|diabet|thyroid|cholesterol|pressure|hypertension|anxiety|stress|sleep|insomnia|depress|skin|acne|hair|joint|arthrit|pregnan|period|menstr|pcos|weight|obesity|cancer|tumor|allerg|asthma|respirat)\b/i,
+  /\b(?:ashwagandha|tulsi|brahmi|triphala|turmeric|haldi|amla|shatavari|guduchi|giloy|arjuna|mulethi|neem|moringa|shilajit|guggulu|gokshura|punarnava|kutki|bhringaraj|shankhapushpi|vidanga|vacha|pippali|ginger|adrak|cinnamon|dalchini|cardamom|elaichi|clove|laung|methi|fenugreek|kalmegh|manjistha|chitrak|bala|jatamansi|aloe|tagar|musta|haritaki|bibhitaki|sariva|chirata|ajwain|cumin|jeera|kalonji|isabgol|senna|safed\s*musli|kapikacchu|rasna|lodhra|nagkesar|churna|kwath|kashayam|ghrita|taila|vati|guggul|rasa|bhasma|dosha|vata|pitta|kapha|prakriti|agni|ama|ojas|dhatu|srotas)\b/i,
+  // user profile / assessment related
+  /\b(?:my\s*(?:result|report|profile|assessment|condition|medication|herb)|safe\s*for\s*me|can\s*I\s*take|should\s*I|recommend|suggest|alternative|compare|avoid|caution|warning|risk)\b/i,
+];
+
+// chhote messages (greetings, yes/no, thanks) — allow karo
+const SHORT_ALLOW_PATTERNS = /^(?:hi|hello|hey|thanks|thank\s*you|ok|okay|yes|no|haan|nahi|theek|shukriya|namaste|bye|goodbye|hmm|accha|thik|haa|ji|kya|kaise|batao|please|help|how|what|why|when|which|tell\s*me)\b/i;
+
+function isOffTopic(message: string): boolean {
+  const trimmed = message.trim();
+
+  // chhota message hai — allow (greeting, yes/no, etc.)
+  if (trimmed.split(/\s+/).length <= 4 && SHORT_ALLOW_PATTERNS.test(trimmed)) {
+    return false;
+  }
+
+  // pehle on-topic check — agar health/herb term hai toh off-topic nahi
+  for (const pattern of ON_TOPIC_PATTERNS) {
+    if (pattern.test(trimmed)) return false;
+  }
+
+  // ab off-topic patterns check
+  for (const pattern of OFF_TOPIC_PATTERNS) {
+    if (pattern.test(trimmed)) return true;
+  }
+
+  // default: allow — aggressive rejection se user experience kharab hoga
+  return false;
+}
+
+const OFF_TOPIC_RESPONSE = `I'm Ayurv — your Ayurvedic herb safety assistant. I can only help with questions about:
+
+• **Herb safety** — interactions, contraindications, side effects
+• **Dosage information** — forms, amounts, timing
+• **Your assessment results** — understanding your personalized report
+• **Ayurvedic concepts** — doshas, formulations, traditional uses
+
+Please ask me something related to herbs or your health profile, and I'll be happy to help!`;
+
+// ============================================
 // CONCERN DETECTION
 // ============================================
 
@@ -843,6 +902,14 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ response: UNKNOWN_HERB_RESPONSE });
       }
+    }
+
+    // ─── Off-topic filter — coding/math/politics jaisi queries LLM tak nahi jaayengi ───
+    if (message !== "__INIT__" && isOffTopic(message)) {
+      await logAudit(session_id, "OFF_TOPIC_BLOCKED", {
+        user_message: message.substring(0, 200),
+      });
+      return NextResponse.json({ response: OFF_TOPIC_RESPONSE });
     }
 
     state.turn_count++;
