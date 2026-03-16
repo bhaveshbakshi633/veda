@@ -12,6 +12,7 @@ import DownloadReport from "@/components/DownloadReport";
 import EmailCapture from "@/components/EmailCapture";
 import HerbCompare from "@/components/HerbCompare";
 import { trackEvent } from "@/lib/track";
+import { inferDoshaFromProfile, DOSHA_INFO, getDoshaCompatibility, type DoshaScore } from "@/lib/doshaProfile";
 import {
   RecommendedHerbCard,
   CautionHerbCard,
@@ -52,6 +53,7 @@ export default function ResultsPage() {
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [shareCopied, setShareCopied] = useState(false);
+  const [doshaScore, setDoshaScore] = useState<DoshaScore | null>(null);
 
   useEffect(() => {
     const disc = sessionStorage.getItem("ayurv_disclaimer");
@@ -81,6 +83,22 @@ export default function ResultsPage() {
       }
 
       setResult(parsed);
+
+      // infer dosha from saved intake form data
+      try {
+        const intakeRaw = sessionStorage.getItem("ayurv_intake_form");
+        if (intakeRaw) {
+          const intake = JSON.parse(intakeRaw);
+          const dosha = inferDoshaFromProfile({
+            age: Number(intake.age) || 30,
+            sex: intake.sex || "other",
+            symptom_primary: parsed.concern || intake.symptom_primary || "",
+            chronic_conditions: intake.chronic_conditions || [],
+          });
+          setDoshaScore(dosha);
+        }
+      } catch { /* dosha inference optional — silent fail */ }
+
       trackEvent("assessment_viewed", {
         recommended: parsed.recommended_herbs.length,
         caution: parsed.caution_herbs.length,
@@ -214,6 +232,22 @@ export default function ResultsPage() {
           </span>
         )}
       </div>
+
+      {/* 2c. Dosha Insight */}
+      {doshaScore && (
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border mb-4 ${DOSHA_INFO[doshaScore.dominant].color}`}>
+          <div className="shrink-0">
+            <p className="text-xs font-bold">{DOSHA_INFO[doshaScore.dominant].name} Dominant</p>
+            <p className="text-[10px] opacity-80">{DOSHA_INFO[doshaScore.dominant].qualities}</p>
+          </div>
+          <div className="ml-auto text-right shrink-0">
+            {doshaScore.secondary && (
+              <p className="text-[10px] opacity-70">Secondary: {DOSHA_INFO[doshaScore.secondary].name}</p>
+            )}
+            <p className="text-[10px] opacity-60">Herbs ranked by dosha compatibility</p>
+          </div>
+        </div>
+      )}
 
       {/* 3. Doctor Referral Banner */}
       {result.doctor_referral_suggested && (
