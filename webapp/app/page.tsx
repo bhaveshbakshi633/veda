@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getOrCreateUid, hasAcceptedDisclaimer, saveDisclaimerAccepted } from "@/lib/storage";
-import { createInitialFormState, type IntakeFormState } from "@/components/intake/constants";
-import StepAbout from "@/components/intake/StepAbout";
+import { createInitialFormState, RED_FLAG_ITEMS, CONCERN_OPTIONS, type IntakeFormState } from "@/components/intake/constants";
 import StepHealth from "@/components/intake/StepHealth";
-import StepConcern from "@/components/intake/StepConcern";
 import { trackEvent } from "@/lib/track";
 import type { RiskAssessment } from "@/lib/types";
 import {
@@ -18,42 +16,13 @@ import EvidenceDrawer from "@/components/EvidenceDrawer";
 import WarningBanner from "@/components/WarningBanner";
 import DoctorCard from "@/components/DoctorCard";
 
-// ─── phases — linear, no going back to separate pages ───
-type Phase =
-  | "welcome"      // hero + disclaimer
-  | "about"        // step 1: age, sex, pregnancy, red flags
-  | "health"       // step 2: conditions, medications, herbs
-  | "concern"      // step 3: pick concern
-  | "submitting"   // API call in progress
-  | "results";     // assessment results inline
-
-const PHASE_ORDER: Phase[] = ["welcome", "about", "health", "concern", "submitting", "results"];
-
-function phaseIndex(phase: Phase): number {
-  return PHASE_ORDER.indexOf(phase);
-}
-
-// progress percentage for the top bar
-function getProgress(phase: Phase): number {
-  const map: Record<Phase, number> = {
-    welcome: 0,
-    about: 25,
-    health: 50,
-    concern: 75,
-    submitting: 90,
-    results: 100,
-  };
-  return map[phase];
-}
-
-// ─── result summary ───
+// result summary
 function getSummary(result: RiskAssessment): string {
   const { recommended_herbs, caution_herbs, avoid_herbs } = result;
   const total = recommended_herbs.length + caution_herbs.length + avoid_herbs.length;
   if (total === 0) return `No herbs with clinical evidence found for ${result.concern_label}.`;
-  if (avoid_herbs.length === 0 && caution_herbs.length === 0) {
-    return `${recommended_herbs.length} herb${recommended_herbs.length > 1 ? "s" : ""} found safe for your profile for ${result.concern_label}.`;
-  }
+  if (avoid_herbs.length === 0 && caution_herbs.length === 0)
+    return `${recommended_herbs.length} herb${recommended_herbs.length > 1 ? "s" : ""} found safe for your profile.`;
   const parts: string[] = [];
   if (recommended_herbs.length > 0) parts.push(`${recommended_herbs.length} recommended`);
   if (caution_herbs.length > 0) parts.push(`${caution_herbs.length} with caution`);
@@ -61,90 +30,47 @@ function getSummary(result: RiskAssessment): string {
   return `For ${result.concern_label}: ${parts.join(", ")}.`;
 }
 
-// ─── JSON-LD for SEO ───
-const JSON_LD = {
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebApplication",
-      name: "Ayurv",
-      url: "https://webapp-self-rho.vercel.app",
-      applicationCategory: "HealthApplication",
-      operatingSystem: "Web",
-      description: "Check if an Ayurvedic herb is safe for you — based on your conditions, medications, and clinical evidence.",
-      offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
-      featureList: "50 herb safety profiles, Drug interaction checks, Evidence-graded claims, Personalized risk assessment",
-    },
-    {
-      "@type": "HowTo",
-      name: "How to Check Ayurvedic Herb Safety",
-      description: "Check if an Ayurvedic herb is safe for you in under 2 minutes.",
-      step: [
-        { "@type": "HowToStep", position: 1, name: "Tell us about you", text: "Age, conditions, medications." },
-        { "@type": "HowToStep", position: 2, name: "We check safety", text: "Cross-reference herbs against your profile." },
-        { "@type": "HowToStep", position: 3, name: "Get your report", text: "Personalized safety recommendations." },
-      ],
-    },
-  ],
-};
-
 export default function HomePage() {
   const router = useRouter();
 
-  // ─── core state ───
-  const [phase, setPhase] = useState<Phase>("welcome");
+  // ─── state ───
   const [form, setForm] = useState<IntakeFormState>(createInitialFormState);
-  const [result, setResult] = useState<RiskAssessment | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<RiskAssessment | null>(null);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [drawerHerb, setDrawerHerb] = useState<{ id: string; name: string } | null>(null);
 
-  // section refs for auto-scroll
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const submitRef = useRef<HTMLButtonElement>(null);
 
-  // ─── auto-scroll jab phase change ho ───
+  // ─── init ───
   useEffect(() => {
-    if (phase !== "welcome") {
-      // thoda delay do render settle hone ke liye
-      setTimeout(() => {
-        sectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-    }
-  }, [phase]);
+    if (hasAcceptedDisclaimer()) setDisclaimerChecked(true);
 
-  // ─── init: check returning user, load profile ───
-  useEffect(() => {
-    // agar pehle se disclaimer accept kiya hai toh skip welcome
-    if (hasAcceptedDisclaimer()) {
-      setDisclaimerChecked(true);
-    }
-
-    // agar sessionStorage mein result hai (e.g. back from chat), direct results dikhao
-    const storedResult = sessionStorage.getItem("ayurv_result");
-    if (storedResult) {
+    // agar pehle se result hai (back from chat) toh dikhao
+    const stored = sessionStorage.getItem("ayurv_result");
+    if (stored) {
       try {
-        const parsed = JSON.parse(storedResult) as RiskAssessment;
+        const parsed = JSON.parse(stored) as RiskAssessment;
         if (parsed.session_id && Array.isArray(parsed.recommended_herbs)) {
           setResult(parsed);
-          setPhase("results");
-          return;
+          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
         }
-      } catch { /* corrupt — ignore */ }
+      } catch { /* ignore */ }
     }
 
+    // load saved profile
     const uid = getOrCreateUid();
+    fetch("/api/user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, user_agent: navigator.userAgent }),
+    }).catch(() => null);
 
-    // register user + load saved profile
-    Promise.all([
-      fetch("/api/user", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid, user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "" }),
-      }).catch(() => null),
-      fetch(`/api/profile?uid=${uid}`).then(r => r.json()).catch(() => null),
-    ]).then(([, profileRes]) => {
-      const saved = profileRes?.profile;
+    fetch(`/api/profile?uid=${uid}`).then(r => r.json()).then(res => {
+      const saved = res?.profile;
       if (!saved) return;
       setForm(prev => ({
         ...prev,
@@ -162,32 +88,31 @@ export default function HomePage() {
           : prev.current_herbs,
       }));
       setProfileLoaded(true);
-    });
+    }).catch(() => {});
   }, []);
 
   // ─── validation ───
   const hasActiveRedFlags = Object.values(form.red_flags).some(v => v);
+  const visibleConcerns = CONCERN_OPTIONS.filter(opt => opt.sex === "all" || form.sex !== "male");
 
-  const aboutComplete =
-    form.age !== "" &&
-    Number(form.age) >= 1 && Number(form.age) <= 120 &&
+  const isFormComplete =
+    disclaimerChecked &&
+    form.age !== "" && Number(form.age) >= 1 && Number(form.age) <= 120 &&
     form.sex !== "" &&
     form.pregnancy_status !== "" &&
-    form.has_red_flags !== null &&
-    !hasActiveRedFlags;
-
-  const healthComplete =
+    form.has_red_flags !== null && !hasActiveRedFlags &&
     form.has_conditions !== null &&
     form.has_medications !== null &&
     (form.has_conditions === false || form.chronic_conditions.length > 0) &&
-    (form.has_medications === false || form.medications.length > 0);
+    (form.has_medications === false || form.medications.length > 0) &&
+    form.symptom_primary !== "";
 
-  const concernComplete = form.symptom_primary !== "";
-
-  // ─── submit assessment ───
-  const handleSubmit = useCallback(async () => {
-    setPhase("submitting");
+  // ─── submit ───
+  async function handleSubmit() {
+    if (!isFormComplete || submitting) return;
+    setSubmitting(true);
     setError(null);
+    setResult(null);
 
     const uid = getOrCreateUid();
     const payload = {
@@ -209,7 +134,6 @@ export default function HomePage() {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000);
-
       const res = await fetch("/api/assess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -229,15 +153,12 @@ export default function HomePage() {
       saveDisclaimerAccepted();
       trackEvent("intake_completed", { concern: form.symptom_primary });
 
-      // auto-save profile (fire-and-forget)
+      // auto-save profile
       fetch("/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid,
-          age: form.age,
-          sex: form.sex,
-          pregnancy_status: form.pregnancy_status,
+          uid, age: form.age, sex: form.sex, pregnancy_status: form.pregnancy_status,
           chronic_conditions: form.has_conditions ? form.chronic_conditions : [],
           medications: form.has_medications ? form.medications : [],
           current_herbs: form.current_herbs.join(", "),
@@ -245,54 +166,30 @@ export default function HomePage() {
       }).catch(() => {});
 
       setResult(assessmentResult);
-      setPhase("results");
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
         setError("Request timed out. Please check your connection and try again.");
       } else {
         setError(err instanceof Error ? err.message : "Something went wrong");
       }
-      setPhase("concern"); // wapas concern step pe le jao
-    }
-  }, [form]);
-
-  // ─── phase navigation ───
-  function goNext() {
-    switch (phase) {
-      case "welcome":
-        if (!disclaimerChecked) return;
-        trackEvent("disclaimer_accepted");
-        setPhase("about");
-        break;
-      case "about":
-        if (!aboutComplete) return;
-        trackEvent("intake_step_changed", { from: 1, to: 2 });
-        setPhase("health");
-        break;
-      case "health":
-        if (!healthComplete) return;
-        trackEvent("intake_step_changed", { from: 2, to: 3 });
-        setPhase("concern");
-        break;
-      case "concern":
-        if (!concernComplete) return;
-        handleSubmit();
-        break;
+    } finally {
+      setSubmitting(false);
     }
   }
 
-  function goBack() {
-    switch (phase) {
-      case "about": setPhase("welcome"); break;
-      case "health": setPhase("about"); break;
-      case "concern": setPhase("health"); break;
-    }
+  function startOver() {
+    setResult(null);
+    setForm(createInitialFormState());
+    setError(null);
+    setDisclaimerChecked(false);
+    sessionStorage.removeItem("ayurv_result");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function handleClearProfile() {
     setForm(prev => ({
-      ...prev,
-      age: "", sex: "", pregnancy_status: "",
+      ...prev, age: "", sex: "", pregnancy_status: "",
       has_conditions: null, chronic_conditions: [],
       has_medications: null, medications: [],
       current_herbs: [],
@@ -300,425 +197,395 @@ export default function HomePage() {
     setProfileLoaded(false);
   }
 
-  function startNewAssessment() {
-    setResult(null);
-    setForm(createInitialFormState());
-    setError(null);
-    setPhase("welcome");
-    sessionStorage.removeItem("ayurv_result");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  // can the user proceed?
-  const canProceed =
-    (phase === "welcome" && disclaimerChecked) ||
-    (phase === "about" && aboutComplete) ||
-    (phase === "health" && healthComplete) ||
-    (phase === "concern" && concernComplete);
-
-  // step label for progress
-  const stepLabel = phase === "welcome" ? "Welcome"
-    : phase === "about" ? "Step 1 of 3 — About You"
-    : phase === "health" ? "Step 2 of 3 — Health Profile"
-    : phase === "concern" ? "Step 3 of 3 — Your Concern"
-    : phase === "submitting" ? "Analysing..."
-    : "Your Results";
-
+  // ─── sab ek page pe, scroll karo, fill karo ───
   return (
-    <div className="max-w-3xl mx-auto pb-8">
-      {/* JSON-LD */}
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+    <div className="max-w-2xl mx-auto pb-12">
 
-      {/* ─── Fixed progress bar ─── */}
-      {phase !== "results" && (
-        <div className="sticky top-1 z-30 mb-6">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-gray-200 shadow-sm px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-600">{stepLabel}</span>
-              <span className="text-xs text-gray-400">{getProgress(phase)}%</span>
-            </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-ayurv-primary to-ayurv-accent rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${getProgress(phase)}%` }}
-              />
+      {/* ═══════ SECTION 1: INTRO + DISCLAIMER ═══════ */}
+      <section className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-ayurv-primary mb-2 leading-tight">
+          Check if an Ayurvedic herb is safe for you
+        </h1>
+        <p className="text-sm text-gray-500 mb-6">
+          Fill the form below. Your safety report will appear at the bottom of this page.
+        </p>
+
+        {/* disclaimer — ek checkbox, simple */}
+        <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+          disclaimerChecked
+            ? "bg-green-50 border-green-300"
+            : "bg-amber-50 border-amber-200"
+        }`}>
+          <div className="mt-0.5 shrink-0">
+            <input type="checkbox" checked={disclaimerChecked} onChange={() => setDisclaimerChecked(!disclaimerChecked)} className="sr-only" />
+            <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
+              disclaimerChecked ? "bg-green-600 border-green-600" : "border-gray-400 bg-white"
+            }`}>
+              {disclaimerChecked && (
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </div>
           </div>
+          <p className="text-sm text-gray-700 leading-relaxed">
+            I understand this is <strong>educational information only</strong>, not medical advice.
+            I will consult a doctor before acting on anything here. This tool does NOT diagnose or prescribe.
+          </p>
+        </label>
+      </section>
+
+      {/* ═══════ SECTION 2: ABOUT YOU ═══════ */}
+      <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">1. About You</h2>
+        <p className="text-xs text-gray-500 mb-5">Basic info so we can check herb safety for your profile.</p>
+
+        {/* returning user */}
+        {profileLoaded && (
+          <div className="flex items-center justify-between bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl px-4 py-3 mb-5">
+            <span className="text-xs text-ayurv-primary font-medium flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Profile loaded from last visit
+            </span>
+            <button type="button" onClick={handleClearProfile} className="text-xs text-gray-500 underline">Clear</button>
+          </div>
+        )}
+
+        <div className="space-y-5">
+          {/* age */}
+          <div>
+            <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+            <input
+              id="age" type="number" inputMode="numeric" min={1} max={120}
+              value={form.age}
+              onChange={e => setForm(p => ({ ...p, age: e.target.value }))}
+              className="w-full border border-gray-200 rounded-xl px-4 py-3.5 text-base bg-gray-50 focus:bg-white focus:ring-2 focus:ring-ayurv-primary/20 focus:border-ayurv-primary/30 outline-none transition-all"
+              placeholder="Your age"
+            />
+          </div>
+
+          {/* sex */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Biological Sex</label>
+            <div className="grid grid-cols-3 gap-3">
+              {[{ v: "male", l: "Male" }, { v: "female", l: "Female" }, { v: "other", l: "Other" }].map(opt => (
+                <button key={opt.v} type="button"
+                  onClick={() => setForm(p => ({
+                    ...p, sex: opt.v,
+                    pregnancy_status: opt.v === "male" ? "not_applicable" : p.pregnancy_status === "not_applicable" ? "" : p.pregnancy_status,
+                  }))}
+                  className={`py-3.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                    form.sex === opt.v
+                      ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-primary/30"
+                  }`}
+                >{opt.l}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* pregnancy */}
+          {form.sex && form.sex !== "male" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Pregnancy / Breastfeeding</label>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { v: "not_pregnant", l: "Not pregnant" },
+                  { v: "pregnant", l: "Pregnant" },
+                  { v: "breastfeeding", l: "Breastfeeding" },
+                  { v: "trying_to_conceive", l: "Trying to conceive" },
+                ].map(opt => (
+                  <button key={opt.v} type="button"
+                    onClick={() => setForm(p => ({ ...p, pregnancy_status: opt.v }))}
+                    className={`py-3 rounded-xl border-2 text-xs font-semibold transition-all ${
+                      form.pregnancy_status === opt.v
+                        ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-primary/30"
+                    }`}
+                  >{opt.l}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* red flags */}
+          <div className="border-t border-gray-100 pt-5">
+            <p className="text-sm font-medium text-gray-700 mb-3">
+              Any <span className="text-red-600 font-semibold">urgent symptoms</span> right now?
+            </p>
+            <div className="flex gap-3 mb-3">
+              <button type="button"
+                onClick={() => setForm(p => ({ ...p, has_red_flags: false, red_flags: Object.fromEntries(RED_FLAG_ITEMS.map(q => [q.key, false])) }))}
+                className={`flex-1 py-3.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  form.has_red_flags === false ? "bg-green-600 text-white border-green-600 shadow-md" : "bg-white text-gray-600 border-gray-200"
+                }`}
+              >No, I&apos;m fine</button>
+              <button type="button"
+                onClick={() => setForm(p => ({ ...p, has_red_flags: true }))}
+                className={`flex-1 py-3.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  form.has_red_flags === true ? "bg-red-600 text-white border-red-600 shadow-md" : "bg-white text-gray-600 border-gray-200"
+                }`}
+              >Yes, I have some</button>
+            </div>
+
+            {form.has_red_flags === true && (
+              <div className="space-y-2">
+                {RED_FLAG_ITEMS.map(item => (
+                  <label key={item.key} className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all ${
+                    form.red_flags[item.key] ? "bg-red-50 border-red-300" : "bg-gray-50 border-gray-200"
+                  }`}>
+                    <input type="checkbox" checked={form.red_flags[item.key]}
+                      onChange={() => setForm(p => ({ ...p, red_flags: { ...p.red_flags, [item.key]: !p.red_flags[item.key] } }))}
+                      className="sr-only" />
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                      form.red_flags[item.key] ? "bg-red-600 border-red-600" : "border-gray-300 bg-white"
+                    }`}>
+                      {form.red_flags[item.key] && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    <span className="text-sm text-gray-700">{item.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {hasActiveRedFlags && (
+              <div className="mt-4 bg-red-50 border-2 border-red-300 rounded-2xl p-5">
+                <h3 className="font-bold text-red-700 text-sm mb-1">Please Seek Medical Help First</h3>
+                <p className="text-sm text-gray-700 mb-3">These symptoms may need immediate medical attention.</p>
+                <div className="text-sm space-y-1">
+                  <p>Ambulance: <strong>108 / 112</strong></p>
+                  <p>iCall: <strong>9152987821</strong></p>
+                  <p>NIMHANS: <strong>080-46110007</strong></p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════ SECTION 3: HEALTH PROFILE ═══════ */}
+      <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">2. Your Health Profile</h2>
+        <p className="text-xs text-gray-500 mb-5">Conditions and medications — so we can check for interactions.</p>
+        <StepHealth form={form} setForm={setForm} />
+      </section>
+
+      {/* ═══════ SECTION 4: YOUR CONCERN ═══════ */}
+      <section className="bg-white border border-gray-200 rounded-2xl p-6 mb-8">
+        <h2 className="text-lg font-bold text-gray-900 mb-1">3. What Do You Need Help With?</h2>
+        <p className="text-xs text-gray-500 mb-5">Pick your main health concern.</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {visibleConcerns.map(opt => (
+            <button key={opt.value} type="button"
+              onClick={() => setForm(p => ({ ...p, symptom_primary: opt.value }))}
+              className={`px-3 py-3.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                form.symptom_primary === opt.value
+                  ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md scale-[1.02]"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-primary/30"
+              }`}
+            >{opt.label}</button>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══════ SUBMIT BUTTON ═══════ */}
+      {!result && (
+        <div className="mb-8">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm p-4 rounded-xl mb-4 flex items-start gap-2">
+              <svg className="w-5 h-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+              </svg>
+              {error}
+            </div>
+          )}
+
+          <button
+            ref={submitRef}
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isFormComplete || submitting}
+            className={`w-full py-4 rounded-2xl text-base font-bold transition-all duration-300 ${
+              isFormComplete && !submitting
+                ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-lg shadow-ayurv-primary/25 hover:shadow-xl active:scale-[0.98]"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {submitting ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Checking 50 herbs against your profile...
+              </span>
+            ) : isFormComplete ? (
+              "Get My Safety Report"
+            ) : (
+              "Fill all sections above to continue"
+            )}
+          </button>
+
+          {!isFormComplete && !submitting && (
+            <p className="text-xs text-gray-400 text-center mt-2">
+              {!disclaimerChecked ? "Accept the disclaimer above" :
+               !form.age || Number(form.age) < 1 || Number(form.age) > 120 ? "Enter your age" :
+               !form.sex ? "Select your biological sex" :
+               !form.pregnancy_status ? "Select pregnancy status" :
+               form.has_red_flags === null ? "Answer the urgent symptoms question" :
+               hasActiveRedFlags ? "Cannot proceed with active urgent symptoms" :
+               form.has_conditions === null ? "Answer the conditions question" :
+               form.has_medications === null ? "Answer the medications question" :
+               (form.has_conditions && form.chronic_conditions.length === 0) ? "Select at least one condition" :
+               (form.has_medications && form.medications.length === 0) ? "Select at least one medication" :
+               !form.symptom_primary ? "Pick your main concern" :
+               "Complete all sections"}
+            </p>
+          )}
         </div>
       )}
 
-      {/* ─── Phase content ─── */}
-      <div ref={sectionRef}>
-
-        {/* ════════════ WELCOME + DISCLAIMER ════════════ */}
-        {phase === "welcome" && (
-          <div className="animate-fade-in">
-            {/* compact hero */}
-            <div className="text-center mb-8">
-              <h1 className="text-3xl sm:text-4xl font-bold text-ayurv-primary mb-3 tracking-tight leading-tight">
-                Is that herb
-                <span className="bg-gradient-to-r from-ayurv-primary to-ayurv-accent bg-clip-text text-transparent"> safe for you?</span>
-              </h1>
-              <p className="text-gray-600 text-base sm:text-lg max-w-lg mx-auto leading-relaxed">
-                Check Ayurvedic herbs against your conditions, medications, and clinical evidence — all on this page.
-              </p>
-              <div className="flex flex-wrap justify-center gap-4 mt-4 text-sm text-gray-500">
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  50 herbs verified
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  Drug interactions checked
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <svg className="w-4 h-4 text-risk-green" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
-                  Free, no account needed
-                </span>
-              </div>
-            </div>
-
-            {/* disclaimer card */}
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-              <div className="bg-gradient-to-r from-ayurv-primary to-ayurv-secondary px-6 py-4">
-                <h2 className="text-base font-semibold text-white">Before You Begin</h2>
-                <p className="text-sm text-green-200/80 mt-0.5">Please read and accept to continue</p>
-              </div>
-              <div className="p-6">
-                <div className="bg-amber-50/80 border border-risk-amber/20 rounded-xl p-4 mb-6">
-                  <div className="flex gap-3">
-                    <svg className="w-5 h-5 text-risk-amber shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      Ayurv checks Ayurvedic herbs against your health profile using clinical evidence
-                      and known drug interactions. It does <strong>NOT</strong> diagnose, prescribe, or
-                      replace your doctor.
-                    </p>
-                  </div>
-                </div>
-
-                {/* single checkbox — simple for elderly */}
-                <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                  disclaimerChecked
-                    ? "bg-risk-green-light border-risk-green/30 shadow-sm"
-                    : "bg-gray-50 border-gray-200 hover:border-gray-300"
-                }`}>
-                  <div className="relative mt-0.5 shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={disclaimerChecked}
-                      onChange={() => setDisclaimerChecked(!disclaimerChecked)}
-                      className="sr-only"
-                    />
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
-                      disclaimerChecked ? "bg-risk-green border-risk-green" : "border-gray-300 bg-white"
-                    }`}>
-                      {disclaimerChecked && (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    I understand this is <strong>educational information only</strong>, not medical advice.
-                    I will consult a healthcare professional before acting on any information provided.
-                  </p>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ════════════ ABOUT YOU ════════════ */}
-        {phase === "about" && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm animate-fade-in">
-            <StepAbout
-              form={form}
-              setForm={setForm}
-              profileLoaded={profileLoaded}
-              onClearProfile={handleClearProfile}
-            />
-          </div>
-        )}
-
-        {/* ════════════ HEALTH PROFILE ════════════ */}
-        {phase === "health" && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm animate-fade-in">
-            <StepHealth form={form} setForm={setForm} />
-          </div>
-        )}
-
-        {/* ════════════ CONCERN ════════════ */}
-        {phase === "concern" && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm animate-fade-in">
-            <StepConcern form={form} setForm={setForm} error={error} />
-          </div>
-        )}
-
-        {/* ════════════ SUBMITTING ════════════ */}
-        {phase === "submitting" && (
-          <div className="bg-white border border-gray-200 rounded-2xl p-12 shadow-sm animate-fade-in text-center">
-            <div className="w-16 h-16 mx-auto mb-6 relative">
-              <svg className="w-16 h-16 animate-spin text-ayurv-primary" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-                <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+      {/* ═══════ RESULTS — same page ke neeche ═══════ */}
+      {result && (
+        <div ref={resultsRef} className="scroll-mt-4">
+          {/* success marker */}
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+              <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </div>
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Analysing your health profile</h2>
-            <p className="text-sm text-gray-500">
-              Checking 50 herbs against your conditions, medications, and clinical evidence...
-            </p>
+            <h2 className="text-xl font-bold text-gray-900">Your Safety Report</h2>
           </div>
-        )}
 
-        {/* ════════════ RESULTS ════════════ */}
-        {phase === "results" && result && (
-          <div className="animate-fade-in">
-            {/* header */}
-            <div className="mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-risk-green/10 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-risk-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-1">Herbs for {result.concern_label}</h3>
+          <p className="text-sm text-gray-500 mb-4">{result.total_relevant} herbs checked against your profile</p>
+
+          {/* summary */}
+          <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl p-4 mb-4">
+            <p className="text-sm text-gray-800">{getSummary(result)}</p>
+          </div>
+
+          {/* safety score */}
+          {(() => {
+            const safe = result.recommended_herbs.length;
+            const caution = result.caution_herbs.length;
+            const avoid = result.avoid_herbs.length;
+            const total = safe + caution + avoid;
+            if (total === 0) return null;
+            const score = Math.round(((safe * 1.0 + caution * 0.4) / total) * 100);
+            const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
+            const label = score >= 70 ? "Good" : score >= 40 ? "Moderate" : "Low";
+            return (
+              <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex items-center gap-4">
+                <div className="relative w-16 h-16 shrink-0">
+                  <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
+                    <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                    <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${score}, 100`} className={color} />
                   </svg>
+                  <span className={`absolute inset-0 flex items-center justify-center text-lg font-bold ${color}`}>{score}</span>
                 </div>
-                <p className="text-sm text-risk-green font-semibold">Assessment Complete</p>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Herbs for {result.concern_label}
-              </h1>
-              <p className="text-sm text-gray-500">
-                {result.total_relevant} herb{result.total_relevant !== 1 ? "s" : ""} checked against your profile
-              </p>
-            </div>
-
-            {/* quick summary */}
-            <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-xl p-4 mb-4">
-              <p className="text-sm text-gray-800">{getSummary(result)}</p>
-            </div>
-
-            {/* safety score gauge */}
-            {(() => {
-              const safe = result.recommended_herbs.length;
-              const caution = result.caution_herbs.length;
-              const avoid = result.avoid_herbs.length;
-              const total = safe + caution + avoid;
-              if (total === 0) return null;
-              const score = Math.round(((safe * 1.0 + caution * 0.4) / total) * 100);
-              const color = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
-              const label = score >= 70 ? "Good" : score >= 40 ? "Moderate" : "Low";
-              return (
-                <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex items-center gap-4">
-                  <div className="relative w-16 h-16 shrink-0">
-                    <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
-                      <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                      <path d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray={`${score}, 100`} className={color} />
-                    </svg>
-                    <span className={`absolute inset-0 flex items-center justify-center text-lg font-bold ${color}`}>{score}</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">Safety Score: <span className={color}>{label}</span></p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {safe} safe, {caution} with cautions, {avoid} to avoid
-                    </p>
-                    <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                      <div className="h-full flex">
-                        {safe > 0 && <div className="bg-green-500 h-full" style={{ width: `${(safe / total) * 100}%` }} />}
-                        {caution > 0 && <div className="bg-amber-500 h-full" style={{ width: `${(caution / total) * 100}%` }} />}
-                        {avoid > 0 && <div className="bg-red-500 h-full" style={{ width: `${(avoid / total) * 100}%` }} />}
-                      </div>
+                <div>
+                  <p className="text-sm font-bold text-gray-900">Safety Score: <span className={color}>{label}</span></p>
+                  <p className="text-xs text-gray-500 mt-0.5">{safe} safe, {caution} caution, {avoid} avoid</p>
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                    <div className="h-full flex">
+                      {safe > 0 && <div className="bg-green-500 h-full" style={{ width: `${(safe / total) * 100}%` }} />}
+                      {caution > 0 && <div className="bg-amber-500 h-full" style={{ width: `${(caution / total) * 100}%` }} />}
+                      {avoid > 0 && <div className="bg-red-500 h-full" style={{ width: `${(avoid / total) * 100}%` }} />}
                     </div>
                   </div>
                 </div>
-              );
-            })()}
-
-            {/* breakdown chips */}
-            <div className="flex flex-wrap gap-2 mb-6">
-              {result.recommended_herbs.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  {result.recommended_herbs.length} recommended
-                </span>
-              )}
-              {result.caution_herbs.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                  {result.caution_herbs.length} with cautions
-                </span>
-              )}
-              {result.avoid_herbs.length > 0 && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-red-50 text-red-700 border border-red-200 rounded-full">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                  {result.avoid_herbs.length} to avoid
-                </span>
-              )}
-            </div>
-
-            {/* doctor referral banner */}
-            {result.doctor_referral_suggested && (
-              <WarningBanner
-                blockedCount={result.avoid_herbs.length}
-                cautionCount={result.caution_herbs.length}
-              />
-            )}
-
-            {/* recommended herbs */}
-            {result.recommended_herbs.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-lg font-semibold text-risk-green mb-1 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
-                  </svg>
-                  Recommended For You
-                </h2>
-                <p className="text-xs text-gray-500 mb-3">
-                  No known contraindications for your profile. Ranked by evidence strength.
-                </p>
-                <div className="space-y-3">
-                  {result.recommended_herbs.map((herb, i) => (
-                    <RecommendedHerbCard key={herb.herb_id} herb={herb} rank={i + 1} onEvidenceClick={(id, name) => setDrawerHerb({ id, name })} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* caution herbs */}
-            {result.caution_herbs.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-lg font-semibold text-risk-amber mb-1 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                  </svg>
-                  Use With Doctor Guidance
-                </h2>
-                <p className="text-xs text-gray-500 mb-3">
-                  These herbs have warnings for your profile. Discuss with your doctor.
-                </p>
-                <div className="space-y-3">
-                  {result.caution_herbs.map(herb => (
-                    <CautionHerbCard key={herb.herb_id} herb={herb} onEvidenceClick={(id, name) => setDrawerHerb({ id, name })} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* avoid herbs */}
-            {result.avoid_herbs.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-lg font-semibold text-risk-red mb-1 flex items-center gap-2">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  Not Safe For You
-                </h2>
-                <p className="text-xs text-gray-500 mb-3">
-                  Do not use without consulting your doctor.
-                </p>
-                <div className="space-y-3">
-                  {result.avoid_herbs.map(herb => (
-                    <AvoidHerbCard key={herb.herb_id} herb={herb} />
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* doctor card */}
-            {(result.doctor_referral_suggested || result.caution_herbs.some(h => h.cautions.some(c => c.type === "medication_interaction"))) && (
-              <DoctorCard result={result} />
-            )}
-
-            {/* action buttons */}
-            <div className="border-t border-gray-200 pt-6 mt-8">
-              <p className="text-xs text-gray-400 mb-4">{result.disclaimer}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <button
-                  onClick={() => {
-                    // chat pe jaane se pehle disclaimer + result sessionStorage mein hona chahiye
-                    sessionStorage.setItem("ayurv_disclaimer", JSON.stringify({ accepted: true }));
-                    router.push("/chat");
-                  }}
-                  className="flex flex-col items-center gap-1.5 px-4 py-4 bg-ayurv-primary text-white rounded-xl font-semibold text-sm hover:bg-ayurv-secondary transition-colors shadow-md"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-                  </svg>
-                  Ask Questions
-                </button>
-                <button
-                  onClick={() => {
-                    sessionStorage.setItem("ayurv_disclaimer", JSON.stringify({ accepted: true }));
-                    router.push("/results");
-                  }}
-                  className="flex flex-col items-center gap-1.5 px-4 py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                  Full Report
-                </button>
-                <button
-                  onClick={() => window.print()}
-                  className="flex flex-col items-center gap-1.5 px-4 py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors no-print"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
-                  </svg>
-                  Print
-                </button>
-                <button
-                  onClick={startNewAssessment}
-                  className="flex flex-col items-center gap-1.5 px-4 py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-                  </svg>
-                  New Check
-                </button>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
+            );
+          })()}
 
-      {/* ─── Bottom navigation bar — back + next ─── */}
-      {phase !== "results" && phase !== "submitting" && (
-        <div className="sticky bottom-0 z-30 mt-6 no-print">
-          <div className="bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] px-4 py-3 -mx-4 sm:mx-0 sm:rounded-2xl sm:border sm:shadow-lg">
-            <div className="flex items-center justify-between gap-3 max-w-3xl mx-auto">
-              {/* back button */}
-              {phase !== "welcome" ? (
-                <button
-                  type="button"
-                  onClick={goBack}
-                  className="flex items-center gap-1.5 px-5 py-3.5 text-sm font-medium text-gray-500 hover:text-gray-900 rounded-xl hover:bg-gray-100 transition-all min-h-[52px]"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                  </svg>
-                  Back
-                </button>
-              ) : (
-                <div /> // spacer
-              )}
+          {/* doctor referral */}
+          {result.doctor_referral_suggested && (
+            <WarningBanner blockedCount={result.avoid_herbs.length} cautionCount={result.caution_herbs.length} />
+          )}
 
-              {/* next button */}
-              <button
-                type="button"
-                onClick={goNext}
-                disabled={!canProceed}
-                className={`flex items-center gap-2 px-8 py-3.5 rounded-xl text-sm font-bold transition-all duration-300 min-h-[52px] ${
-                  canProceed
-                    ? "bg-ayurv-primary text-white hover:bg-ayurv-secondary shadow-lg shadow-ayurv-primary/20 hover:shadow-xl hover:-translate-y-0.5"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                }`}
-              >
-                {phase === "concern" ? "Get My Safety Report" : "Continue"}
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          {/* recommended */}
+          {result.recommended_herbs.length > 0 && (
+            <section className="mb-6">
+              <h3 className="text-base font-semibold text-green-700 mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
                 </svg>
+                Recommended ({result.recommended_herbs.length})
+              </h3>
+              <div className="space-y-3">
+                {result.recommended_herbs.map((herb, i) => (
+                  <RecommendedHerbCard key={herb.herb_id} herb={herb} rank={i + 1} onEvidenceClick={(id, name) => setDrawerHerb({ id, name })} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* caution */}
+          {result.caution_herbs.length > 0 && (
+            <section className="mb-6">
+              <h3 className="text-base font-semibold text-amber-700 mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                Use With Caution ({result.caution_herbs.length})
+              </h3>
+              <div className="space-y-3">
+                {result.caution_herbs.map(herb => (
+                  <CautionHerbCard key={herb.herb_id} herb={herb} onEvidenceClick={(id, name) => setDrawerHerb({ id, name })} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* avoid */}
+          {result.avoid_herbs.length > 0 && (
+            <section className="mb-6">
+              <h3 className="text-base font-semibold text-red-700 mb-2 flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                Not Safe ({result.avoid_herbs.length})
+              </h3>
+              <div className="space-y-3">
+                {result.avoid_herbs.map(herb => (
+                  <AvoidHerbCard key={herb.herb_id} herb={herb} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* doctor card */}
+          {(result.doctor_referral_suggested || result.caution_herbs.some(h => h.cautions.some(c => c.type === "medication_interaction"))) && (
+            <DoctorCard result={result} />
+          )}
+
+          {/* disclaimer + actions */}
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <p className="text-xs text-gray-400 mb-4">{result.disclaimer}</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("ayurv_disclaimer", JSON.stringify({ accepted: true }));
+                  router.push("/chat");
+                }}
+                className="flex items-center justify-center gap-2 py-4 bg-ayurv-primary text-white rounded-xl font-bold text-sm hover:bg-ayurv-secondary transition-colors shadow-md"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                </svg>
+                Ask Questions
+              </button>
+              <button onClick={startOver}
+                className="flex items-center justify-center gap-2 py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                </svg>
+                New Check
               </button>
             </div>
           </div>
@@ -726,12 +593,7 @@ export default function HomePage() {
       )}
 
       {/* evidence drawer */}
-      <EvidenceDrawer
-        open={!!drawerHerb}
-        onClose={() => setDrawerHerb(null)}
-        herbId={drawerHerb?.id || ""}
-        herbName={drawerHerb?.name || ""}
-      />
+      <EvidenceDrawer open={!!drawerHerb} onClose={() => setDrawerHerb(null)} herbId={drawerHerb?.id || ""} herbName={drawerHerb?.name || ""} />
     </div>
   );
 }
