@@ -9,6 +9,7 @@ import { getSubstitutions } from "@/lib/herbSubstitutions";
 import { getFoodInteractions } from "@/lib/foodInteractions";
 import DosageCalculator from "@/components/DosageCalculator";
 import PersonalizedWarning from "@/components/PersonalizedWarning";
+import BookmarkButton from "@/components/BookmarkButton";
 
 // slug → herb_id mapping
 const SLUG_MAP: Record<string, string> = {
@@ -264,15 +265,18 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
               );
             })()}
           </div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-ayurv-primary text-white text-sm font-semibold rounded-xl hover:bg-ayurv-secondary transition-colors shadow-sm"
-          >
-            Check if {names.english} is safe for you
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-ayurv-primary text-white text-sm font-semibold rounded-xl hover:bg-ayurv-secondary transition-colors shadow-sm"
+            >
+              Check if {names.english} is safe for you
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+              </svg>
+            </Link>
+            <BookmarkButton herbId={herbId} herbName={names.english} size="lg" />
+          </div>
         </div>
 
         {/* personalized warning banner — checks user's saved profile */}
