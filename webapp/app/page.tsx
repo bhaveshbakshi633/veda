@@ -294,14 +294,30 @@ export default function HomePage() {
                 <span className="text-red-500 text-xs ml-2 font-normal">Please select</span>
               )}
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-3" role="radiogroup" aria-label="Biological Sex"
+              onKeyDown={e => {
+                const opts = ["male", "female", "other"];
+                const idx = opts.indexOf(form.sex);
+                if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  const next = opts[(idx + 1) % opts.length];
+                  setForm(p => ({ ...p, sex: next, pregnancy_status: next === "male" ? "not_applicable" : p.pregnancy_status === "not_applicable" ? "" : p.pregnancy_status }));
+                } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  const prev = opts[(idx - 1 + opts.length) % opts.length];
+                  setForm(p => ({ ...p, sex: prev, pregnancy_status: prev === "male" ? "not_applicable" : p.pregnancy_status === "not_applicable" ? "" : p.pregnancy_status }));
+                }
+              }}
+            >
               {[{ v: "male", l: "Male" }, { v: "female", l: "Female" }, { v: "other", l: "Other" }].map(opt => (
                 <button key={opt.v} type="button"
+                  role="radio" aria-checked={form.sex === opt.v}
+                  tabIndex={form.sex === opt.v || (!form.sex && opt.v === "male") ? 0 : -1}
                   onClick={() => setForm(p => ({
                     ...p, sex: opt.v,
                     pregnancy_status: opt.v === "male" ? "not_applicable" : p.pregnancy_status === "not_applicable" ? "" : p.pregnancy_status,
                   }))}
-                  className={`py-3.5 rounded-xl border-2 text-sm font-semibold transition-all ${
+                  className={`py-3.5 rounded-xl border-2 text-sm font-semibold transition-all focus:ring-2 focus:ring-ayurv-primary/40 focus:outline-none ${
                     form.sex === opt.v
                       ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md"
                       : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-primary/30"
@@ -422,11 +438,12 @@ export default function HomePage() {
           )}
         </div>
         <p className="text-xs text-gray-500 mb-5">Pick your main health concern.</p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5" role="radiogroup" aria-label="Health concern">
           {visibleConcerns.map(opt => (
             <button key={opt.value} type="button"
+              role="radio" aria-checked={form.symptom_primary === opt.value}
               onClick={() => setForm(p => ({ ...p, symptom_primary: opt.value }))}
-              className={`px-3 py-3.5 rounded-xl border-2 text-sm font-medium transition-all ${
+              className={`px-3 py-3.5 rounded-xl border-2 text-sm font-medium transition-all focus:ring-2 focus:ring-ayurv-primary/40 focus:outline-none ${
                 form.symptom_primary === opt.value
                   ? "bg-ayurv-primary text-white border-ayurv-primary shadow-md scale-[1.02]"
                   : "bg-white text-gray-600 border-gray-200 hover:border-ayurv-primary/30"
