@@ -100,6 +100,39 @@ export default function HistoryPage() {
     return val.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 
+  function exportCSV() {
+    if (entries.length === 0) return;
+    const headers = ["Date", "Concern", "Recommended", "Caution", "Avoid", "Total"];
+    const rows = entries.map(e => [
+      formatDate(e.date),
+      e.concern_label || e.concern,
+      String(e.recommended_count),
+      String(e.caution_count),
+      String(e.avoid_count),
+      String(e.total),
+    ]);
+    // profile summary at top
+    const profileRows: string[][] = [];
+    if (profile) {
+      profileRows.push(["Health Profile"]);
+      profileRows.push(["Age", profile.age || "—"]);
+      profileRows.push(["Sex", formatProfileField(profile.sex)]);
+      profileRows.push(["Conditions", (profile.chronic_conditions || []).map(c => formatProfileField(c)).join("; ")]);
+      profileRows.push(["Medications", (profile.medications || []).map(m => formatProfileField(m)).join("; ")]);
+      profileRows.push([]);
+    }
+    const csvContent = [...profileRows, headers, ...rows]
+      .map(row => row.map(cell => `"${(cell || "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `ayurv-health-journal-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]" role="status">
@@ -189,9 +222,23 @@ export default function HistoryPage() {
 
       {/* Assessment History */}
       <section className="mb-8">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wider">
-          Assessment History
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+            Assessment History
+          </h2>
+          {entries.length > 0 && (
+            <button
+              type="button"
+              onClick={exportCSV}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:text-ayurv-primary hover:border-ayurv-primary/20 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+              Export CSV
+            </button>
+          )}
+        </div>
 
         {entries.length === 0 ? (
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8">
