@@ -87,6 +87,22 @@ input:focus, select:focus, textarea:focus {
 .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 
+/* font size modes — elderly-friendly accessibility */
+html.text-lg-mode {
+  font-size: 18px;
+}
+html.text-lg-mode button,
+html.text-lg-mode a {
+  min-height: 48px;
+}
+html.text-xl-mode {
+  font-size: 20px;
+}
+html.text-xl-mode button,
+html.text-xl-mode a {
+  min-height: 52px;
+}
+
 @layer components {
   .risk-badge-red {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-risk-red text-white;
