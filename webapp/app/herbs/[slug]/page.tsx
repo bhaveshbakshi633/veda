@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getServiceClient } from "@/lib/supabase";
 import { HERB_LIST } from "@/components/intake/constants";
 import { getPregnancySafety } from "@/lib/pregnancySafety";
+import { getSynergiesForHerb } from "@/lib/herbSynergies";
 import DosageCalculator from "@/components/DosageCalculator";
 
 // slug → herb_id mapping
@@ -430,6 +431,44 @@ export default async function HerbPage({ params }: { params: Promise<{ slug: str
             )}
           </section>
         )}
+
+        {/* synergy pairings — "Works Best With" */}
+        {(() => {
+          const synergies = getSynergiesForHerb(herbId);
+          if (synergies.length === 0) return null;
+          return (
+            <section className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm mb-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Works Best With</h2>
+              <p className="text-xs text-gray-500 mb-4">Evidence-based herb pairings for enhanced benefit</p>
+              <div className="space-y-3">
+                {synergies.map((syn, i) => {
+                  const partnerId = syn.herbs[0] === herbId ? syn.herbs[1] : syn.herbs[0];
+                  const partnerName = HERB_LIST.find(h => h.id === partnerId)?.name || partnerId;
+                  const partnerSlug = slugFromId(partnerId);
+                  return (
+                    <div key={i} className="border border-gray-100 rounded-xl p-4 hover:border-ayurv-primary/20 transition-colors">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-ayurv-primary/10 flex items-center justify-center text-xs font-bold text-ayurv-primary">+</span>
+                          {partnerSlug ? (
+                            <Link href={`/herbs/${partnerSlug}`} className="text-sm font-semibold text-ayurv-primary hover:underline">
+                              {partnerName}
+                            </Link>
+                          ) : (
+                            <span className="text-sm font-semibold text-gray-800">{partnerName}</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-700 mb-1">{syn.benefit}</p>
+                      <p className="text-xs text-gray-500">{syn.reason}</p>
+                      <p className="text-[10px] text-gray-400 mt-1 italic">{syn.evidence}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* CTA */}
         <div className="bg-ayurv-primary/5 border border-ayurv-primary/15 rounded-2xl p-6 text-center mb-6">
